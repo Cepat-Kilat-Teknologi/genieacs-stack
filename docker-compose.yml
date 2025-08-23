@@ -1,0 +1,71 @@
+services:
+  ### Main GenieACS DB: MongoDB ###
+  mongo:
+    image: mongo:8.0
+    restart: unless-stopped
+    container_name: mongo-genieacs
+    environment:
+      MONGO_DATA_DIR: /data/db
+      MONGO_LOG_DIR: /var/log/mongodb
+    volumes:
+      - mongo_data:/data/db
+      - mongo_configdb:/data/configdb
+    networks:
+      - genieacs_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+  
+  ### GenieACS Application ###
+  genieacs:
+    depends_on:
+      mongo:
+        condition: service_healthy
+    image: cepatkilatteknologi/genieacs:latest
+    restart: unless-stopped
+    container_name: genieacs
+    environment:
+      GENIEACS_UI_JWT_SECRET: kmzway87aa
+      GENIEACS_CWMP_ACCESS_LOG_FILE: /var/log/genieacs/cwmp-access.log
+      GENIEACS_NBI_ACCESS_LOG_FILE: /var/log/genieacs/nbi-access.log
+      GENIEACS_FS_ACCESS_LOG_FILE: /var/log/genieacs/fs-access.log
+      GENIEACS_UI_ACCESS_LOG_FILE: /var/log/genieacs/ui-access.log
+      GENIEACS_DEBUG_FILE: /var/log/genieacs/debug.yaml
+      GENIEACS_EXT_DIR: /opt/genieacs/ext
+      GENIEACS_MONGODB_CONNECTION_URL: mongodb://mongo:27017/genieacs
+      NODE_ENV: production
+    ports:
+      - "7547:7547"
+      - "7557:7557"
+      - "7567:7567"
+      - "3000:3000"
+    volumes:
+      - genieacs_data:/opt/genieacs
+      - genieacs_logs:/var/log/genieacs
+      - ./ext:/opt/genieacs/ext:ro
+    networks:
+      - genieacs_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  mongo_data:
+    name: genieacs-mongo-data
+  mongo_configdb:
+    name: genieacs-mongo-configdb
+  genieacs_data:
+    name: genieacs-app-data
+  genieacs_logs:
+    name: genieacs-logs
+
+networks:
+  genieacs_network:
+    name: genieacs-network
+    driver: bridge

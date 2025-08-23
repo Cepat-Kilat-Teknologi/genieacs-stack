@@ -1,8 +1,4 @@
 # .gitignore
-# Docker
-.dockerignore
-Dockerfile
-docker-compose.yml
 
 # Logs
 logs/

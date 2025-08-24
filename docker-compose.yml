@@ -69,3 +69,5 @@ networks:
   genieacs_network:
     name: genieacs-network
     driver: bridge
+  
+  

@@ -293,7 +293,7 @@ show collections
 5. Create a Pull Request.
 
 ## 📄 License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License - see the [LICENSE](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/blob/main/LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 - [GenieACS](https://github.com/genieacs/genieacs) - Open source ACS server
@@ -303,7 +303,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 For support, please contact:
 - **Email**: info@ckt.co.id
-- **Issues**: [GitHub Issues page](https://github.com/cepatkilatteknologi/genieacs/issues)
+- **Issues**: [GitHub Issues page](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/issues)
 
 ⚠️ **Important**: Always ensure to keep your Docker images and containers updated to the latest versions for security and performance improvements.
 

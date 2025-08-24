@@ -3,31 +3,36 @@
 ![Docker](https://img.shields.io/badge/Docker-%E2%9C%93-blue?style=flat-square)
 ![MongoDB](https://img.shields.io/badge/MongoDB-8.0-green?style=flat-square)
 ![GenieACS](https://img.shields.io/badge/GenieACS-1.2.13-orange?style=flat-square)
+![Multi-Arch](https://img.shields.io/badge/multi--arch-amd64%2Carm64%2Carmv7-lightgrey?style=flat-square)
 
 Docker container for deployment GenieACS v1.2.13 with MongoDB 8.0, optimized for production use with security hardening, health checks, and log management.
 
 ## 📋 Features
-- ✅ GenieACS v1.2.13  (CWMP, NBI, FS, UI)
+- ✅ GenieACS v1.2.13 (CWMP, NBI, FS, UI)
 - ✅ MongoDB 8.0 with health check
-- ✅ Multi-architecture support (amd64/arm64)
+- ✅ Multi-architecture support (amd64, arm64, arm/v7)
 - ✅ Security hardened image
 - ✅ Auto-restart and health monitoring
 - ✅ Log rotation support
 - ✅ Data persistence with Docker volumes
 - ✅ Environment variables configuration
+- ✅ Backup and restore functionality
+- ✅ Comprehensive management via Makefile
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Docker & Docker Compose
 - Git
-- Make (optional)
+- Make (optional but recommended)
 
-### 1. Setup Configuration
-The first step to take is to prepare the configuration:
-
+### 1. Clone and Setup
 ```bash
-# Setup Configuration files
+# Clone the repository (if applicable)
+git clone <your-repo-url>
+cd genieacs-docker
+
+# Setup configuration files
 make setup
 ```
 
@@ -35,23 +40,24 @@ This command will create:
 - `genieacs.logrotate` - Configuration for log rotation
 - `config/` directory - For GenieACS configuration files
 - `ext/` directory - For extensions GenieACS
+- `backups/` directory - For MongoDB backups
 
 ### 2. Full Installation & Run
 ```bash
-# Setup Configuration (if not done yet)
-make setup
-
 # Build Docker image
 make build
 
-# Run all services
+# Start all services
 make up
 
-# Check status services
+# Check service status
 make status
 
+# Test service health
+make test
+
 # Open http://localhost:3000
-# Login: admin / admin
+# Default login: admin / admin
 ```
 
 ## 📁 Structure Project
@@ -60,74 +66,51 @@ make status
 ├── Dockerfile              # Docker build configuration
 ├── Makefile               # Build and management commands
 ├── docker-compose.yml     # Service orchestration
-├── .dockerignore          # Docker ignore patterns
-├── .gitignore            # Git ignore patterns
 ├── genieacs.logrotate    # Log rotation config
-├── mongo-init.js         # MongoDB initialization
-├── config/               # Configuration directory
-│   ├── config.json       # GenieACS config
-│   └── env.json          # Environment variables
-└── ext/                  # GenieACS extensions directory
+├── config/               # Configuration directory (created by make setup)
+├── ext/                  # GenieACS extensions directory (created by make setup)
+└── backups/              # MongoDB backups directory (created by make setup)
 ```
 
 ## 🛠️ Management Commands
 
 ### Build & Deployment
 ```bash
-# Setup configuration files 
-make setup
-
-# Build image for current architecture
-make build
-
-# Build multi-platform image
-make buildx
-
-# Push image ke registry
-make push
-
-# Run services in background
-make up
-
-# Stop dan remove services
-make down
-
-# See real-time logs
-make logs
+make setup        # Setup configuration files
+make build        # Build image for current architecture
+make buildx       # Build multi-platform image
+make buildx-push  # Build and push multi-platform image
+make push         # Push image to registry
+make up           # Start services in background
+make down         # Stop and remove services
+make logs         # View real-time logs
 ```
 
 ### Maintenance & Monitoring
 ```bash
-# Status services
-make status
+make status       # Check service status
+make test         # Test service health
+make ps           # Show running processes
+make restart      # Restart services
+make clean        # Cleanup resources
+make prune        # Prune unused Docker resources
+make scan         # Scan image for vulnerabilities
+make verify-deps  # Verify dependency versions
+```
 
-# Test health services
-make test
-
-# Restart services
-make restart
-
-# Cleanup resources
-make clean
-
-# Scan vulnerabilities image
-make scan
-
-# Verify dependencies versions
-make verify-deps
+### Database & Operations
+```bash
+make shell-mongo    # Access MongoDB shell
+make shell-genieacs # Access GenieACS container shell
+make backup         # Backup MongoDB database
+make restore FILE=backups/backup_20231201_120000.gz  # Restore from backup
 ```
 
 ### Development & Debugging
 ```bash
-# Build with security features
-make secure-build
-
-# Show running processes
-make ps
-
-# Open GenieACS UI in browser
-# (After 'make up' command)
-# Buka: http://localhost:3000
+make secure-build  # Build with security verification
+make stats         # Show container resource usage
+make resources     # Show container resource limits
 ```
 
 ## ⚙️ Configuration
@@ -135,15 +118,10 @@ make ps
 ### Environment Variables
 **GenieACS Service**:
 ```yaml
-GENIEACS_UI_JWT_SECRET: kmzway87aa
+GENIEACS_UI_JWT_SECRET: kmzway87aa  # Change this in production!
 GENIEACS_MONGODB_CONNECTION_URL: mongodb://mongo:27017/genieacs
 NODE_ENV: production
 ```
-
-**File Configuration** (generated by `make setup`):
-- `config/env.json` - Environment variables
-- `config/config.json` - Service configuration
-- `genieacs.logrotate` - Log rotation rules
 
 ### Port Mapping
 | Service | Port | Protocol | Description              |
@@ -156,10 +134,11 @@ NODE_ENV: production
 ## 🔐 Security Features
 - Non-root user execution
 - Automated security updates
-- Vulnerability scanning integrated
+- Integrated vulnerability scanning
 - Minimal package installation
 - Log rotation and management
 - Health check monitoring
+- JWT secret configuration
 
 ## 🐳 Docker Images
 - **Base Image**: `debian:stable-slim`
@@ -171,33 +150,39 @@ NODE_ENV: production
 
 ## 📊 Monitoring & Health Checks
 
+MongoDB: Checks database connectivity every 10 seconds
+
+GenieACS: Checks UI accessibility every 30 seconds
+
 ### Health Checks
-**MongoDB**:
+**Both containers include health checks:**
+- MongoDB: Checks database connectivity every 10 seconds
+- GenieACS: Checks UI accessibility every 30 seconds
+
+**Manual Health Testing**
 ```bash
 # Test MongoDB connection
 docker exec mongo-genieacs mongosh --eval "db.adminCommand('ping')"
-```
 
-**GenieACS UI**:
-```bash
 # Test GenieACS UI health
 curl -f http://localhost:3000/
-```
 
-### Logs Management
+# Test GenieACS CWMP endpoint
+curl -f http://localhost:7547/
+```
+**Log Management**
 ```bash
-# View all logs real-time
+# View all logs in real-time
 make logs
 
-# View MongoDB logs only
+# View specific container logs
 docker logs mongo-genieacs -f
-
-# View GenieACS logs only
 docker logs genieacs -f
 
-# Check logs directory
-ls -la /var/log/genieacs/
+# Check log files inside container
+docker exec genieacs ls -la /var/log/genieacs/
 ```
+
 
 ## 🗂️ Volumes & Data Persistence
 | Volume                  | Description                   | Location            |
@@ -213,29 +198,32 @@ ls -la /var/log/genieacs/
 **Port already in use**:
 ```bash
 # Check port usage
-lsof -i :3000
-lsof -i :7547
+sudo lsof -i :3000
+sudo lsof -i :7547
+
+# Alternative port solution: modify docker-compose.yml ports mapping
+# "3001:3000" # Map host port 3001 to container port 3000
 ```
 
 **MongoDB connection issues**:
 ```bash
-# Test MongoDB connection
-docker exec mongo-genieacs mongosh --eval "db.adminCommand('ping')"
-
 # Check MongoDB logs
 docker logs mongo-genieacs
+
+# Test MongoDB connection
+docker exec mongo-genieacs mongosh --eval "db.adminCommand('ping')"
 ```
 
 **Build failures**:
 ```bash
-# Clean build artifacts
+# Clean build artifacts and rebuild
 make clean
 make build
 ```
 
 **Login issues (username/password)**:
 ```bash
-# Reset admin password
+# Reset admin password (run inside MongoDB container)
 docker exec mongo-genieacs mongosh genieacs --eval '
   db.users.updateOne(
     { _id: "admin" },
@@ -247,18 +235,17 @@ docker exec mongo-genieacs mongosh genieacs --eval '
     { upsert: true }
   )
 '
-# Login with: admin / admin
 ```
 
 ### Debug Commands
 ```bash
-# Login to container GenieACS
-docker exec -it genieacs /bin/bash
+# Access GenieACS container shell
+make shell-genieacs
 
-# Check service status
+# Check supervisor status
 supervisorctl status
 
-# Test binary paths
+# Test GenieACS binaries
 which genieacs-cwmp
 which genieacs-nbi
 which genieacs-fs
@@ -266,23 +253,37 @@ which genieacs-ui
 
 # Check environment variables
 env | grep GENIEACS
+
+# Access MongoDB shell
+make shell-mongo
+
+# List databases
+show dbs
+
+# Check collections in genieacs database
+use genieacs
+show collections
 ```
 
 ## 📝 Changelog
 ### v1.2.13
 - Initial GenieACS v1.2.13 release
 - MongoDB 8.0 support
-- Multi-architecture build support
+- Multi-architecture build support (amd64, arm64, arm/v7)
 - Security vulnerability fixes
 - Health check integration
 - Automated setup process
+- Comprehensive Makefile for management
+- Backup and restore functionality
 
 ## 🚨 Important Notes
 - Run `make setup` will overwrite existing config files.
 - Default login: username: `admin`, password: `admin`.
 - Change `GENIEACS_UI_JWT_SECRET` for production environment.
-- Backup volumes every month or as needed.
-- Monitor logs for debugging and performance tuning.
+- Regularly backup your data using make backup
+- Monitor disk usage of Docker volumes
+- Keep your Docker environment updated
+
 
 ## 🤝 Contributing
 1. Fork the project.
@@ -305,3 +306,5 @@ For support, please contact:
 - **Issues**: [GitHub Issues page](https://github.com/cepatkilatteknologi/genieacs/issues)
 
 ⚠️ **Important**: Always ensure to keep your Docker images and containers updated to the latest versions for security and performance improvements.
+
+⚠️ **Note**: This deployment is designed for production use but should be thoroughly tested in your environment before deployment. Always ensure you have proper backups of your MongoDB data.

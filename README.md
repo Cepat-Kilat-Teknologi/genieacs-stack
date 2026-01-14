@@ -90,15 +90,17 @@ Open http://localhost:3000 and login with credentials from your `.env` file:
 
 ```
 .
-├── Dockerfile              # Multi-stage Docker build
+├── Dockerfile              # Multi-stage Docker build (npm install)
 ├── Makefile                # Build and management commands
 ├── docker-compose.yml      # Service orchestration
 ├── .env.example            # Environment template (copy to .env)
 ├── .env                    # Your local configuration (git ignored)
 ├── config/
+│   ├── supervisord.conf    # Supervisor config for GenieACS services
 │   └── genieacs.logrotate  # Log rotation config
 ├── scripts/
-│   └── create-user.sh      # User creation script
+│   ├── create-user.sh      # User creation script
+│   └── run_with_env.sh     # Service runner script
 ├── ext/                    # GenieACS extensions directory
 └── backups/                # MongoDB backups directory
 ```

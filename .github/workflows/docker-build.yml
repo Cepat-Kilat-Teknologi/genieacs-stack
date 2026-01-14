@@ -2,26 +2,25 @@ name: ci
 
 on:
   push:
-    branches:
-      - main
-    tags:
-      - 'v*.*.*'
+    branches: [ "main" ]
+    tags: [ "v*.*.*" ]
   pull_request:
-    branches:
-      - main
+    branches: [ "main" ]
   workflow_dispatch:
 
 env:
   REGISTRY: docker.io
   IMAGE_NAME: cepatkilatteknologi/genieacs
-  GENIEACS_VERSION: "1.2.13"
+  IMAGE_VERSION: '1.2.13'
 
 jobs:
+  # ========================
+  # Job 1: Build & Push Docker Image
+  # ========================
   build-and-push:
     name: Build & Push Docker Image
     runs-on: ubuntu-latest
     environment: ci
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,7 +37,7 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & Push Docker Image
+      - name: Build & Push with fixed tags
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -46,7 +45,7 @@ jobs:
           platforms: linux/amd64,linux/arm64,linux/arm/v7
           push: true
           tags: |
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:v${{ env.GENIEACS_VERSION }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ env.IMAGE_VERSION }}
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

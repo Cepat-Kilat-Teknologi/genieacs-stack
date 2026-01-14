@@ -12,13 +12,17 @@ services:
       - mongo_configdb:/data/configdb
     networks:
       - genieacs_network
+    # Security: Only expose to internal network, not host
+    # Uncomment below if you need external MongoDB access
+    # ports:
+    #   - "127.0.0.1:27017:27017"
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 10
       start_period: 20s
-  
+
   ### GenieACS Application ###
   genieacs:
     depends_on:
@@ -28,20 +32,29 @@ services:
     restart: unless-stopped
     container_name: genieacs
     environment:
-      GENIEACS_UI_JWT_SECRET: kmzway87aa
+      # Security settings
+      GENIEACS_UI_JWT_SECRET: ${GENIEACS_UI_JWT_SECRET:?JWT secret is required}
+      GENIEACS_NBI_AUTH: ${GENIEACS_NBI_AUTH:-true}
+      GENIEACS_UI_AUTH: ${GENIEACS_UI_AUTH:-true}
+      # Log files
       GENIEACS_CWMP_ACCESS_LOG_FILE: /var/log/genieacs/cwmp-access.log
       GENIEACS_NBI_ACCESS_LOG_FILE: /var/log/genieacs/nbi-access.log
       GENIEACS_FS_ACCESS_LOG_FILE: /var/log/genieacs/fs-access.log
       GENIEACS_UI_ACCESS_LOG_FILE: /var/log/genieacs/ui-access.log
       GENIEACS_DEBUG_FILE: /var/log/genieacs/debug.yaml
+      # Paths
       GENIEACS_EXT_DIR: /opt/genieacs/ext
       GENIEACS_MONGODB_CONNECTION_URL: mongodb://mongo:27017/genieacs
       NODE_ENV: production
     ports:
-      - "7547:7547"
-      - "7557:7557"
-      - "7567:7567"
-      - "3000:3000"
+      # CWMP (TR-069) - CPE devices connect here
+      - "${GENIEACS_CWMP_PORT:-7547}:7547"
+      # NBI API - Restrict to localhost in production if not needed externally
+      - "${GENIEACS_NBI_PORT:-7557}:7557"
+      # File Server
+      - "${GENIEACS_FS_PORT:-7567}:7567"
+      # Web UI
+      - "${GENIEACS_UI_PORT:-3000}:3000"
     volumes:
       - genieacs_data:/opt/genieacs
       - genieacs_logs:/var/log/genieacs
@@ -54,6 +67,10 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    # Security hardening
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
 
 volumes:
   mongo_data:
@@ -69,5 +86,3 @@ networks:
   genieacs_network:
     name: genieacs-network
     driver: bridge
-  
-  

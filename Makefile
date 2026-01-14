@@ -49,16 +49,16 @@ help:
 setup:
 	@echo "Creating configuration files..."
 	@mkdir -p config ext backups
-	@echo "/var/log/genieacs/*.{log,yaml} {" > genieacs.logrotate
-	@echo "    daily" >> genieacs.logrotate
-	@echo "    rotate 30" >> genieacs.logrotate
-	@echo "    compress" >> genieacs.logrotate
-	@echo "    delaycompress" >> genieacs.logrotate
-	@echo "    dateext" >> genieacs.logrotate
-	@echo "    missingok" >> genieacs.logrotate
-	@echo "    notifempty" >> genieacs.logrotate
-	@echo "    copytruncate" >> genieacs.logrotate
-	@echo "}" >> genieacs.logrotate
+	@echo "/var/log/genieacs/*.{log,yaml} {" > config/genieacs.logrotate
+	@echo "    daily" >> config/genieacs.logrotate
+	@echo "    rotate 30" >> config/genieacs.logrotate
+	@echo "    compress" >> config/genieacs.logrotate
+	@echo "    delaycompress" >> config/genieacs.logrotate
+	@echo "    dateext" >> config/genieacs.logrotate
+	@echo "    missingok" >> config/genieacs.logrotate
+	@echo "    notifempty" >> config/genieacs.logrotate
+	@echo "    copytruncate" >> config/genieacs.logrotate
+	@echo "}" >> config/genieacs.logrotate
 	@echo "Configuration files created successfully!"
 
 # Build for current platform

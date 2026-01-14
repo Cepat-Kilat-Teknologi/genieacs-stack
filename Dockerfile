@@ -1,6 +1,5 @@
-# Build stage
-FROM node:lts-slim AS build
-LABEL maintainer="info@ckt.co.id"
+FROM node:24-bookworm AS build
+LABEL maintainer="Kode Nusantara"
 
 # packages needed only to build genieacs
 RUN apt-get update \
@@ -39,7 +38,7 @@ FROM debian:bookworm-slim
 
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \
-      supervisor ca-certificates iputils-ping logrotate curl \
+      supervisor ca-certificates iputils-ping logrotate curl wget \
  && rm -rf /var/lib/apt/lists/*
 
 # Copy Node runtime and GenieACS artefacts from the build stage
@@ -54,15 +53,14 @@ COPY --from=services /tmp/genieacs-services/run_with_env.sh \
 RUN chmod +x /usr/local/bin/run_with_env.sh
 
 # logrotate rule
-COPY genieacs.logrotate /etc/logrotate.d/genieacs
+COPY config/genieacs.logrotate /etc/logrotate.d/genieacs
 
-# create runtime user
+# create runtime user (supervisor runs as root but spawns services as genieacs)
 RUN useradd --system --no-create-home --home /opt/genieacs genieacs \
  && mkdir -p /opt/genieacs/ext /var/log/genieacs \
  && chown -R genieacs:genieacs /opt/genieacs /var/log/genieacs
 
-USER genieacs
 WORKDIR /opt/genieacs
 
 EXPOSE 7547 7557 7567 3000
-CMD ["/usr/bin/supervisord","-c","/etc/supervisor/conf.d/genieacs.conf"]
+CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/genieacs.conf"]

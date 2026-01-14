@@ -5,7 +5,7 @@
 ![GenieACS](https://img.shields.io/badge/GenieACS-1.2.13-orange?style=flat-square)
 ![Node.js](https://img.shields.io/badge/Node.js-24-brightgreen?style=flat-square)
 ![Multi-Arch](https://img.shields.io/badge/multi--arch-amd64%2Carm64%2Carmv7-lightgrey?style=flat-square)
-![![ci](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/actions/workflows/docker-build.yml/badge.svg)](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/actions/workflows/docker-build.yml)
+[![ci](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/actions/workflows/docker-build.yml)
 
 Docker container for deployment GenieACS v1.2.13 with MongoDB 8.0, optimized for production use with security hardening, health checks, and log management.
 

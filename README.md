@@ -4,7 +4,7 @@
 ![MongoDB](https://img.shields.io/badge/MongoDB-8.0-green?style=flat-square)
 ![GenieACS](https://img.shields.io/badge/GenieACS-1.2.13-orange?style=flat-square)
 ![Node.js](https://img.shields.io/badge/Node.js-24-brightgreen?style=flat-square)
-![Multi-Arch](https://img.shields.io/badge/multi--arch-amd64%2Carm64%2Carmv7-lightgrey?style=flat-square)
+![Multi-Arch](https://img.shields.io/badge/multi--arch-amd64%2Carm64-lightgrey?style=flat-square)
 [![ci](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/actions/workflows/docker-build.yml)
 
 Docker container for deployment GenieACS v1.2.13 with MongoDB 8.0, optimized for production use with security hardening, health checks, and log management.
@@ -14,7 +14,7 @@ Docker container for deployment GenieACS v1.2.13 with MongoDB 8.0, optimized for
 - GenieACS v1.2.13 (CWMP, NBI, FS, UI)
 - MongoDB 8.0 with health check
 - Node.js 24 LTS
-- Multi-architecture support (amd64, arm64, arm/v7)
+- Multi-architecture support (amd64, arm64)
 - Security hardened image
 - Auto-restart and health monitoring
 - Log rotation support

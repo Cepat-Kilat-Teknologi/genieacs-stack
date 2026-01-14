@@ -7,7 +7,7 @@ IMAGE_NAME = cepatkilatteknologi/genieacs
 VERSION = v1.2.13
 TAG = $(VERSION)
 LATEST = latest
-PLATFORMS = linux/amd64,linux/arm64,linux/arm/v7
+PLATFORMS = linux/amd64,linux/arm64
 COMPOSE_FILE = docker-compose.yml
 COMPOSE_PROJECT_NAME = genieacs
 

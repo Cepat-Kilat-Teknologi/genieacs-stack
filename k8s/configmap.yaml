@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: genieacs-config
+  namespace: genieacs
+  labels:
+    app.kubernetes.io/name: genieacs
+    app.kubernetes.io/component: config
+data:
+  # MongoDB connection
+  GENIEACS_MONGODB_CONNECTION_URL: "mongodb://mongodb:27017/genieacs"
+
+  # Authentication settings
+  GENIEACS_NBI_AUTH: "true"
+  GENIEACS_UI_AUTH: "true"
+
+  # Log files
+  GENIEACS_CWMP_ACCESS_LOG_FILE: "/var/log/genieacs/cwmp-access.log"
+  GENIEACS_NBI_ACCESS_LOG_FILE: "/var/log/genieacs/nbi-access.log"
+  GENIEACS_FS_ACCESS_LOG_FILE: "/var/log/genieacs/fs-access.log"
+  GENIEACS_UI_ACCESS_LOG_FILE: "/var/log/genieacs/ui-access.log"
+  GENIEACS_DEBUG_FILE: "/var/log/genieacs/debug.yaml"
+
+  # Paths
+  GENIEACS_EXT_DIR: "/opt/genieacs/ext"
+  NODE_ENV: "production"

@@ -1,0 +1,37 @@
+# Kustomization file for GenieACS Kubernetes deployment
+#
+# Usage:
+#   kubectl apply -k k8s/
+#
+# Or preview first:
+#   kubectl kustomize k8s/
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: genieacs
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - mongodb-pvc.yaml
+  - mongodb-deployment.yaml
+  - mongodb-service.yaml
+  - genieacs-pvc.yaml
+  - genieacs-deployment.yaml
+  - genieacs-service.yaml
+  # Uncomment to include ingress
+  # - ingress.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/part-of: genieacs
+
+# Image customization (optional)
+# images:
+#   - name: cepatkilatteknologi/genieacs
+#     newTag: v1.2.13
+#   - name: mongo
+#     newTag: "8.0"

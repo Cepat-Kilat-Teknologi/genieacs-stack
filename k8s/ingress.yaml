@@ -1,0 +1,70 @@
+# Ingress for GenieACS Web UI
+# Requires: Ingress Controller (nginx, traefik, etc.)
+#
+# Usage:
+#   1. Update the host to your domain
+#   2. Configure TLS if needed
+#   3. Apply: kubectl apply -f ingress.yaml
+#
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: genieacs-ingress
+  namespace: genieacs
+  labels:
+    app.kubernetes.io/name: genieacs
+    app.kubernetes.io/component: ingress
+  annotations:
+    # Nginx Ingress Controller annotations
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # Uncomment for cert-manager TLS
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  rules:
+    # Web UI
+    - host: genieacs.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: genieacs
+                port:
+                  number: 3000
+  # Uncomment for TLS
+  # tls:
+  #   - hosts:
+  #       - genieacs.example.com
+  #     secretName: genieacs-tls
+---
+# Separate Ingress for CWMP (TR-069) if CPE devices access via domain
+# Usually CWMP uses direct IP/port, but some setups need domain access
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: genieacs-cwmp-ingress
+  namespace: genieacs
+  labels:
+    app.kubernetes.io/name: genieacs
+    app.kubernetes.io/component: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: cwmp.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: genieacs
+                port:
+                  number: 7547

@@ -93,8 +93,10 @@ Open http://localhost:3000 and login with credentials from your `.env` file:
 .
 ├── Dockerfile              # Multi-stage Docker build (npm install)
 ├── Makefile                # Build and management commands
-├── docker-compose.yml      # Service orchestration
+├── docker-compose.yml      # Service orchestration (development)
+├── docker-compose.prod.yml # Production deployment (uses Docker Hub image)
 ├── .env.example            # Environment template (copy to .env)
+├── .env.prod.example       # Production environment template
 ├── .env                    # Your local configuration (git ignored)
 ├── config/
 │   ├── supervisord.conf    # Supervisor config for GenieACS services
@@ -135,6 +137,65 @@ Open http://localhost:3000 and login with credentials from your `.env` file:
 | NBI | 7557 | TCP | Northbound Interface API |
 | FS | 7567 | TCP | File Server |
 | UI | 3000 | TCP | Web Interface |
+
+## Production Deployment
+
+For production deployment using pre-built image from Docker Hub:
+
+### Quick Production Setup
+
+```bash
+# 1. Download production files
+curl -O https://raw.githubusercontent.com/Cepat-Kilat-Teknologi/genieacs-docker/main/docker-compose.prod.yml
+curl -O https://raw.githubusercontent.com/Cepat-Kilat-Teknologi/genieacs-docker/main/.env.prod.example
+
+# 2. Configure environment
+cp .env.prod.example .env
+
+# 3. Generate JWT secret and update .env
+openssl rand -hex 32
+# Edit .env and set GENIEACS_UI_JWT_SECRET and GENIEACS_ADMIN_PASSWORD
+
+# 4. Start services
+docker compose -f docker-compose.prod.yml up -d
+
+# 5. Wait for services to be healthy (check status)
+docker compose -f docker-compose.prod.yml ps
+
+# 6. Create admin user
+docker exec genieacs /bin/bash -c 'cd /opt/genieacs && node -e "
+const crypto = require(\"crypto\");
+const salt = crypto.randomBytes(16).toString(\"hex\");
+const hash = crypto.createHash(\"sha256\").update(\"YOUR_PASSWORD\" + salt).digest(\"hex\");
+console.log(JSON.stringify({_id:\"admin\",password:hash,salt:salt,roles:\"admin\"}));
+"' | docker exec -i genieacs-mongo mongosh genieacs --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
+```
+
+### Production Features
+
+- Pre-built multi-arch image (amd64, arm64)
+- Resource limits (CPU, Memory)
+- Log rotation with size limits
+- Health checks with proper timeouts
+- Security hardening enabled
+- MongoDB not exposed to host
+
+### Production Compose Commands
+
+```bash
+# Start services
+docker compose -f docker-compose.prod.yml up -d
+
+# View logs
+docker compose -f docker-compose.prod.yml logs -f
+
+# Stop services
+docker compose -f docker-compose.prod.yml down
+
+# Update to latest image
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
 
 ## Management Commands
 

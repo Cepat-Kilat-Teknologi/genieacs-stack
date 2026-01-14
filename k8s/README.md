@@ -31,6 +31,7 @@ GenieACS adalah Auto Configuration Server (ACS) open-source untuk mengelola pera
 - kubectl configured
 - Storage class `longhorn-backup` tersedia (untuk backup otomatis MongoDB)
 - MetalLB atau LoadBalancer controller (untuk IP 10.100.0.198)
+- Docker Hub secret `dockerhub-secret` (untuk pull private image)
 
 ## Quick Start
 
@@ -50,7 +51,25 @@ stringData:
   GENIEACS_UI_JWT_SECRET: "<hasil-dari-openssl-rand>"
 ```
 
-### 3. Deploy menggunakan Kustomize
+### 3. Siapkan DockerHub Secret
+
+Pastikan secret `dockerhub-secret` tersedia di namespace genieacs:
+
+```bash
+# Copy dari namespace lain (jika sudah ada)
+kubectl get secret dockerhub-secret -n production -o yaml | \
+  sed 's/namespace: production/namespace: genieacs/' | \
+  kubectl apply -f -
+
+# Atau buat baru
+kubectl create secret docker-registry dockerhub-secret \
+  -n genieacs \
+  --docker-server=https://index.docker.io/v1/ \
+  --docker-username=<username> \
+  --docker-password=<password>
+```
+
+### 4. Deploy menggunakan Kustomize
 
 ```bash
 # Preview konfigurasi
@@ -60,7 +79,7 @@ kubectl kustomize genieacs/
 kubectl apply -k genieacs/
 ```
 
-### 4. Verifikasi Deployment
+### 5. Verifikasi Deployment
 
 ```bash
 # Cek namespace
@@ -72,37 +91,13 @@ kubectl get all -n genieacs
 # Cek PVC
 kubectl get pvc -n genieacs
 
-# Cek logs MongoDB
-kubectl logs -n genieacs deployment/mongodb
-
-# Cek logs GenieACS
+# Cek logs
 kubectl logs -n genieacs deployment/genieacs
 ```
 
-### 5. Buat Admin User
+### 6. Setup Admin User
 
-Edit password di `create-user-job.yaml`:
-
-```yaml
-- name: ADMIN_PASSWORD
-  value: "password-anda-yang-kuat"
-```
-
-Jalankan job:
-
-```bash
-# Apply job
-kubectl apply -f genieacs/create-user-job.yaml
-
-# Cek status job
-kubectl get jobs -n genieacs
-
-# Cek logs
-kubectl logs -n genieacs job/create-genieacs-user
-
-# Hapus job setelah selesai
-kubectl delete -f genieacs/create-user-job.yaml
-```
+Akses Web UI di http://10.100.0.198:3000 dan buat admin user pada halaman pertama kali.
 
 ## Akses GenieACS
 
@@ -114,12 +109,6 @@ Setelah deployment berhasil, GenieACS dapat diakses melalui:
 | CWMP (TR-069) | 7547 | http://10.100.0.198:7547 |
 | NBI API | 7557 | http://10.100.0.198:7557 |
 | File Server | 7567 | http://10.100.0.198:7567 |
-
-### Login Web UI
-
-- URL: http://10.100.0.198:3000
-- Username: `admin`
-- Password: (sesuai yang di-set di create-user-job.yaml)
 
 ### Akses dengan Port Forward (testing)
 
@@ -147,11 +136,10 @@ genieacs/
 ├── mongodb-pvc.yaml        # MongoDB persistent storage (longhorn-backup)
 ├── mongodb-deployment.yaml # MongoDB deployment
 ├── mongodb-service.yaml    # MongoDB internal service
-├── genieacs-pvc.yaml       # GenieACS persistent storage
+├── genieacs-pvc.yaml       # GenieACS persistent storage (logs & ext)
 ├── genieacs-deployment.yaml# GenieACS deployment
 ├── genieacs-service.yaml   # GenieACS LoadBalancer (10.100.0.198)
 ├── ingress.yaml            # Ingress (optional)
-├── create-user-job.yaml    # Job untuk membuat admin user
 ├── kustomization.yaml      # Kustomize configuration
 └── README.md               # Dokumentasi ini
 ```
@@ -164,9 +152,10 @@ MongoDB menggunakan storage class `longhorn-backup` untuk backup otomatis:
 |-----|------|---------------|---------|
 | mongodb-data | 10Gi | longhorn-backup | Database data |
 | mongodb-configdb | 1Gi | longhorn-backup | MongoDB config |
-| genieacs-data | 5Gi | default | GenieACS data |
-| genieacs-logs | 5Gi | default | Log files |
+| genieacs-logs | 5Gi | default | Log files (stderr only) |
 | genieacs-ext | 1Gi | default | Extensions |
+
+> **Note**: Access logs di-disable untuk mencegah disk penuh. Hanya stderr logs yang disimpan.
 
 ## Resource Limits
 
@@ -190,6 +179,21 @@ kubectl describe pod -n genieacs <pod-name>
 kubectl get events -n genieacs --sort-by='.lastTimestamp'
 ```
 
+### ImagePullBackOff
+
+```bash
+# Pastikan dockerhub-secret ada
+kubectl get secret -n genieacs dockerhub-secret
+
+# Jika tidak ada, copy dari namespace lain
+kubectl get secret dockerhub-secret -n production -o yaml | \
+  sed 's/namespace: production/namespace: genieacs/' | \
+  kubectl apply -f -
+
+# Restart pod
+kubectl delete pod -n genieacs -l app.kubernetes.io/name=genieacs
+```
+
 ### MongoDB tidak ready
 
 ```bash
@@ -210,28 +214,23 @@ kubectl get svc -n genieacs mongodb
 kubectl exec -it -n genieacs deployment/genieacs -- nc -zv mongodb 27017
 ```
 
-### Cannot Login ke UI
-
-```bash
-# Cek apakah user sudah ada
-kubectl exec -n genieacs -it deploy/mongodb -- mongosh genieacs --eval "db.users.find()"
-
-# Re-run create user job
-kubectl delete job create-genieacs-user -n genieacs --ignore-not-found
-kubectl apply -f genieacs/create-user-job.yaml
-```
-
 ### Reset Admin Password
 
-Jalankan ulang create-user-job dengan password baru:
+Reset password via MongoDB:
 
 ```bash
-# Edit password di create-user-job.yaml
-# Hapus job lama jika ada
-kubectl delete job -n genieacs create-genieacs-user --ignore-not-found
+# Generate new password hash
+SALT=$(openssl rand -hex 16)
+PASSWORD="newpassword123"
+HASH=$(echo -n "${PASSWORD}${SALT}" | openssl dgst -sha256 -hex | awk '{print $2}')
 
-# Apply ulang
-kubectl apply -f genieacs/create-user-job.yaml
+# Update di MongoDB
+kubectl exec -n genieacs deployment/mongodb -- mongosh genieacs --eval "
+  db.users.updateOne(
+    { _id: 'admin' },
+    { \$set: { password: '${HASH}', salt: '${SALT}' } }
+  )
+"
 ```
 
 ### Cek Service LoadBalancer

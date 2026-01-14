@@ -124,8 +124,9 @@ Thumbs.db
 # GenieACS specific
 config/env.json
 config/config.json
-genieacs.logrotate
+/genieacs.logrotate
 mongo-init.js
 ext/
 data/
 tmp/
+backups/

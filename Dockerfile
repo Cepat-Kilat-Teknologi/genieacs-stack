@@ -5,17 +5,25 @@ RUN apt-get update \
  && apt-get install -y python3 make g++ \
  && rm -rf /var/lib/apt/lists/*
 
-# Install GenieACS from npm (pre-built, no build step needed)
+# Install GenieACS from npm
 WORKDIR /opt/genieacs
 ARG GENIEACS_VERSION=1.2.13
 RUN npm install --unsafe-perm genieacs@${GENIEACS_VERSION}
+
+# Fix known vulnerabilities in dependencies
+RUN npm audit fix --force || true
+
+# Update specific vulnerable packages
+RUN npm update koa qs path-to-regexp glob tar --save || true
 
 ##################################
 # -------- Final image ----------#
 ##################################
 FROM debian:bookworm-slim
 
+# Install packages and apply security updates
 RUN apt-get update \
+ && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends \
       supervisor ca-certificates iputils-ping logrotate curl wget \
  && rm -rf /var/lib/apt/lists/*

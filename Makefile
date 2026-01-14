@@ -1,6 +1,6 @@
 # Makefile for GenieACS Docker Build and Deployment
 .PHONY: help build buildx push up down logs stop restart clean setup scan verify-deps \
-        test status ps shell-mongo shell-genieacs backup restore prune
+        test status ps shell-mongo shell-genieacs backup restore prune create-user
 
 # Variables
 IMAGE_NAME = cepatkilatteknologi/genieacs
@@ -38,6 +38,7 @@ help:
 	@echo "  restore       - Restore MongoDB data from backup"
 	@echo "  prune         - Prune unused Docker resources"
 	@echo "  secure-build  - Build and verify image security"
+	@echo "  create-user   - Create admin user from .env credentials"
 	@echo ""
 	@echo "Variables:"
 	@echo "  IMAGE_NAME=$(IMAGE_NAME)"
@@ -201,3 +202,7 @@ stats:
 resources:
 	@echo "=== Container Resource Limits ==="
 	@docker inspect mongo-genieacs genieacs --format '{{.Name}} - Memory: {{.HostConfig.Memory}} CPU: {{.HostConfig.NanoCpus}}' | sed 's/\/\///g'
+
+# Create GenieACS admin user from .env credentials
+create-user:
+	@./scripts/create-user.sh

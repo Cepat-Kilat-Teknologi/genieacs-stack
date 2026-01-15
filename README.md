@@ -122,12 +122,13 @@ Open http://localhost:3000 and login with credentials from your `.env` file:
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `GENIEACS_NBI_AUTH` | `true` | Enable NBI API authentication |
 | `GENIEACS_UI_AUTH` | `true` | Enable UI authentication |
 | `GENIEACS_CWMP_PORT` | `7547` | CWMP service port |
 | `GENIEACS_NBI_PORT` | `7557` | NBI API port |
 | `GENIEACS_FS_PORT` | `7567` | File server port |
 | `GENIEACS_UI_PORT` | `3000` | Web UI port |
+
+> **Note:** For Kubernetes deployment, NBI API authentication is handled via Nginx sidecar with X-API-Key header. See [NBI API Authentication](#nbi-api-authentication) section.
 
 ## Port Mapping
 
@@ -195,6 +196,107 @@ docker compose -f docker-compose.prod.yml down
 # Update to latest image
 docker compose -f docker-compose.prod.yml pull
 docker compose -f docker-compose.prod.yml up -d
+```
+
+## Kubernetes Deployment
+
+For Kubernetes deployment, use the manifests in the `k8s/` directory.
+
+### Prerequisites
+
+- Kubernetes cluster (v1.25+)
+- kubectl configured
+- Nginx Ingress Controller (optional, for ingress)
+- Longhorn or other storage provisioner
+
+### Quick Kubernetes Setup
+
+```bash
+# 1. Apply all manifests
+kubectl apply -k k8s/
+
+# 2. Wait for pods to be ready
+kubectl get pods -n genieacs -w
+
+# 3. Access services via LoadBalancer IP
+kubectl get svc -n genieacs
+```
+
+### Kubernetes Files
+
+| File | Description |
+|------|-------------|
+| `namespace.yaml` | GenieACS namespace |
+| `configmap.yaml` | Environment configuration |
+| `secret.yaml` | Sensitive data (JWT secret) |
+| `nginx-nbi-auth.yaml` | NBI API authentication (Nginx sidecar) |
+| `mongodb-*.yaml` | MongoDB deployment, service, PVC |
+| `genieacs-*.yaml` | GenieACS deployment, service, PVC |
+| `ingress.yaml` | Ingress rules (optional) |
+| `kustomization.yaml` | Kustomize configuration |
+
+### NBI API Authentication
+
+The NBI API is secured using X-API-Key header authentication via Nginx sidecar.
+
+**Configuration:** Edit `k8s/nginx-nbi-auth.yaml` to change the API key:
+
+```nginx
+if ($http_x_api_key != "your-api-key-here") {
+    return 401 "Invalid or missing X-API-Key";
+}
+```
+
+**Usage:**
+
+```bash
+# Without API key - returns 401
+curl http://<LOADBALANCER_IP>:7557/devices
+
+# With API key - returns 200
+curl -H "X-API-Key: your-api-key-here" http://<LOADBALANCER_IP>:7557/devices
+
+# Example: Get all devices
+curl -H "X-API-Key: your-api-key-here" http://<LOADBALANCER_IP>:7557/devices | jq
+
+# Example: Get presets
+curl -H "X-API-Key: your-api-key-here" http://<LOADBALANCER_IP>:7557/presets | jq
+
+# Example: Create/update preset
+curl -X PUT \
+  -H "X-API-Key: your-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{"weight":0,"channel":"default","events":"Registered"}' \
+  http://<LOADBALANCER_IP>:7557/presets/my-preset
+```
+
+**Generate new API key:**
+
+```bash
+# Generate random 32-byte hex key
+openssl rand -hex 32
+```
+
+### Kubernetes Management Commands
+
+```bash
+# View all resources
+kubectl get all -n genieacs
+
+# View logs
+kubectl logs -f deployment/genieacs -n genieacs
+
+# Restart deployment
+kubectl rollout restart deployment/genieacs -n genieacs
+
+# Scale deployment
+kubectl scale deployment/genieacs --replicas=2 -n genieacs
+
+# Access MongoDB shell
+kubectl exec -it deployment/mongodb -n genieacs -- mongosh genieacs
+
+# Access GenieACS shell
+kubectl exec -it deployment/genieacs -n genieacs -- /bin/bash
 ```
 
 ## Management Commands
@@ -266,7 +368,8 @@ make verify-deps  # Verify dependency versions
 
 ## Security Features
 
-- JWT-based authentication for UI and NBI API
+- JWT-based authentication for UI
+- X-API-Key authentication for NBI API (Kubernetes)
 - No default credentials (must be configured via `.env`)
 - MongoDB not exposed to host by default
 - `no-new-privileges` security option enabled
@@ -279,8 +382,8 @@ make verify-deps  # Verify dependency versions
 
 - [ ] Generate unique `GENIEACS_UI_JWT_SECRET` using `openssl rand -hex 32`
 - [ ] Set strong `GENIEACS_ADMIN_PASSWORD`
-- [ ] Enable `GENIEACS_NBI_AUTH=true`
 - [ ] Enable `GENIEACS_UI_AUTH=true`
+- [ ] Configure NBI API key in `k8s/nginx-nbi-auth.yaml` (Kubernetes)
 - [ ] Consider binding ports to `127.0.0.1` if behind reverse proxy
 - [ ] Regular backups using `make backup`
 - [ ] Keep Docker images updated
@@ -306,8 +409,11 @@ curl -f http://localhost:3000/
 # Test GenieACS CWMP
 curl -f http://localhost:7547/
 
-# Test GenieACS NBI
+# Test GenieACS NBI (Docker Compose)
 curl -f http://localhost:7557/
+
+# Test GenieACS NBI (Kubernetes - requires X-API-Key)
+curl -H "X-API-Key: your-api-key" http://<LOADBALANCER_IP>:7557/devices
 ```
 
 ## Troubleshooting

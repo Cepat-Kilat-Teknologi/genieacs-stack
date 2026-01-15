@@ -15,9 +15,9 @@ spec:
       targetPort: 7547
       protocol: TCP
       name: cwmp
-    # NBI API
+    # NBI API (via Nginx auth proxy)
     - port: 7557
-      targetPort: 7557
+      targetPort: 7558
       protocol: TCP
       name: nbi
     # File Server

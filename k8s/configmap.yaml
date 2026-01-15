@@ -12,6 +12,7 @@ data:
 
   # Authentication settings
   GENIEACS_UI_AUTH: "true"
+  GENIEACS_NBI_AUTH: "true"
 
   # Log files - Access logs disabled to prevent disk growth
   # GENIEACS_CWMP_ACCESS_LOG_FILE: "/var/log/genieacs/cwmp-access.log"

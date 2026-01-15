@@ -68,3 +68,36 @@ spec:
                 name: genieacs
                 port:
                   number: 7547
+---
+# NBI API Ingress with Basic Authentication
+# Generate htpasswd: htpasswd -c auth admin
+# Create secret: kubectl create secret generic nbi-basic-auth --from-file=auth -n genieacs
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: genieacs-nbi-ingress
+  namespace: genieacs
+  labels:
+    app.kubernetes.io/name: genieacs
+    app.kubernetes.io/component: ingress
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "3600"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "3600"
+    # Basic Authentication
+    nginx.ingress.kubernetes.io/auth-type: basic
+    nginx.ingress.kubernetes.io/auth-secret: nbi-basic-auth
+    nginx.ingress.kubernetes.io/auth-realm: "NBI API Authentication Required"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: nbi.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: genieacs
+                port:
+                  number: 7557

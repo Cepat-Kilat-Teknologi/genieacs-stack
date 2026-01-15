@@ -52,6 +52,23 @@ spec:
               done
               echo "MongoDB is ready!"
       containers:
+        # Nginx sidecar for NBI API Key Auth
+        - name: nginx-nbi-auth
+          image: nginx:1.27-alpine
+          ports:
+            - containerPort: 7558
+              name: nbi-auth
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "32Mi"
+            limits:
+              cpu: "200m"
+              memory: "64Mi"
         - name: genieacs
           image: cepatkilatteknologi/genieacs:latest
           imagePullPolicy: Always
@@ -108,3 +125,6 @@ spec:
         - name: genieacs-ext
           persistentVolumeClaim:
             claimName: genieacs-ext
+        - name: nginx-config
+          configMap:
+            name: nginx-nbi-config

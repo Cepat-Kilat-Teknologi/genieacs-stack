@@ -1,0 +1,49 @@
+# Nginx ConfigMap for NBI API Key Auth
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nginx-nbi-config
+  namespace: genieacs
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /dev/stderr warn;
+    pid /tmp/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        access_log /dev/stdout;
+
+        server {
+            listen 7558;
+            server_name localhost;
+
+            location / {
+                # Validate X-API-Key header
+                if ($http_x_api_key != "36db3afc571ee42eca201201d3a67e710e4129fb432ebfec2eb0cd96fdb70f7b") {
+                    return 401 "Invalid or missing X-API-Key";
+                }
+
+                proxy_pass http://127.0.0.1:7557;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-API-Key $http_x_api_key;
+                proxy_read_timeout 3600s;
+                proxy_send_timeout 3600s;
+            }
+        }
+    }
+---
+# Secret for API Key
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nbi-api-key
+  namespace: genieacs
+type: Opaque
+stringData:
+  api-key: "alhamdulillah"

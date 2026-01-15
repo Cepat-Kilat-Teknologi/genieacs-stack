@@ -5,24 +5,29 @@ GenieACS adalah Auto Configuration Server (ACS) open-source untuk mengelola pera
 ## Arsitektur
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                      Namespace: genieacs                     │
-├─────────────────────────────────────────────────────────────┤
-│                                                              │
-│   ┌─────────────┐         ┌─────────────────────────────┐   │
-│   │   MongoDB   │◄────────│        GenieACS             │   │
-│   │  (mongo:8)  │         │  - CWMP Server (7547)       │   │
-│   │  Port:27017 │         │  - NBI API (7557)           │   │
-│   └─────────────┘         │  - File Server (7567)       │   │
-│         │                 │  - Web UI (3000)            │   │
-│         ▼                 └─────────────────────────────┘   │
-│   ┌─────────────┐                     │                     │
-│   │   PVC       │                     ▼                     │
-│   │ longhorn-   │         ┌─────────────────────────────┐   │
-│   │   backup    │         │     LoadBalancer Service    │   │
-│   └─────────────┘         │     IP: 10.100.0.198        │   │
-│                           └─────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                         Namespace: genieacs                           │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│   ┌─────────────┐         ┌────────────────────────────────────────┐ │
+│   │   MongoDB   │◄────────│              GenieACS Pod              │ │
+│   │  (mongo:8)  │         │  ┌──────────────┐  ┌────────────────┐  │ │
+│   │  Port:27017 │         │  │   Nginx      │  │   GenieACS     │  │ │
+│   └─────────────┘         │  │   Sidecar    │  │                │  │ │
+│         │                 │  │   (7558)     │──│  - CWMP (7547) │  │ │
+│         ▼                 │  │      │       │  │  - NBI  (7557) │  │ │
+│   ┌─────────────┐         │  │  X-API-Key   │  │  - FS   (7567) │  │ │
+│   │   PVC       │         │  │    Auth      │  │  - UI   (3000) │  │ │
+│   │ longhorn-   │         │  └──────────────┘  └────────────────┘  │ │
+│   │   backup    │         └────────────────────────────────────────┘ │
+│   └─────────────┘                        │                           │
+│                                          ▼                           │
+│                          ┌─────────────────────────────┐             │
+│                          │   LoadBalancer Service      │             │
+│                          │   IP: 10.100.0.198          │             │
+│                          │   7557 → Nginx (7558)       │             │
+│                          └─────────────────────────────┘             │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Prerequisites
@@ -51,7 +56,19 @@ stringData:
   GENIEACS_UI_JWT_SECRET: "<hasil-dari-openssl-rand>"
 ```
 
-### 3. Siapkan DockerHub Secret
+### 3. Configure NBI API Key
+
+Edit file `nginx-nbi-auth.yaml` dan ganti API key:
+
+```bash
+# Generate API key baru
+openssl rand -hex 32
+
+# Edit nginx-nbi-auth.yaml, ganti value di bagian:
+# if ($http_x_api_key != "your-new-api-key-here")
+```
+
+### 4. Siapkan DockerHub Secret
 
 Pastikan secret `dockerhub-secret` tersedia di namespace genieacs:
 
@@ -69,7 +86,7 @@ kubectl create secret docker-registry dockerhub-secret \
   --docker-password=<password>
 ```
 
-### 4. Deploy menggunakan Kustomize
+### 5. Deploy menggunakan Kustomize
 
 ```bash
 # Preview konfigurasi
@@ -79,7 +96,7 @@ kubectl kustomize genieacs/
 kubectl apply -k genieacs/
 ```
 
-### 5. Verifikasi Deployment
+### 6. Verifikasi Deployment
 
 ```bash
 # Cek namespace
@@ -95,7 +112,7 @@ kubectl get pvc -n genieacs
 kubectl logs -n genieacs deployment/genieacs
 ```
 
-### 6. Setup Admin User
+### 7. Setup Admin User
 
 Akses Web UI di http://10.100.0.198:3000 dan buat admin user pada halaman pertama kali.
 
@@ -103,12 +120,12 @@ Akses Web UI di http://10.100.0.198:3000 dan buat admin user pada halaman pertam
 
 Setelah deployment berhasil, GenieACS dapat diakses melalui:
 
-| Service | Port | URL |
-|---------|------|-----|
-| Web UI | 3000 | http://10.100.0.198:3000 |
-| CWMP (TR-069) | 7547 | http://10.100.0.198:7547 |
-| NBI API | 7557 | http://10.100.0.198:7557 |
-| File Server | 7567 | http://10.100.0.198:7567 |
+| Service | Port | URL | Auth |
+|---------|------|-----|------|
+| Web UI | 3000 | http://10.100.0.198:3000 | JWT (login) |
+| CWMP (TR-069) | 7547 | http://10.100.0.198:7547 | - |
+| NBI API | 7557 | http://10.100.0.198:7557 | **X-API-Key** |
+| File Server | 7567 | http://10.100.0.198:7567 | - |
 
 ### Akses dengan Port Forward (testing)
 
@@ -116,6 +133,87 @@ Setelah deployment berhasil, GenieACS dapat diakses melalui:
 kubectl port-forward -n genieacs svc/genieacs 3000:3000 7547:7547 7557:7557 7567:7567
 
 # Akses UI di http://localhost:3000
+```
+
+## NBI API Authentication
+
+NBI API dilindungi dengan X-API-Key header authentication via Nginx sidecar.
+
+### Konfigurasi API Key
+
+Edit file `nginx-nbi-auth.yaml` untuk mengubah API key:
+
+```yaml
+# Di bagian nginx.conf
+if ($http_x_api_key != "your-api-key-here") {
+    return 401 "Invalid or missing X-API-Key";
+}
+```
+
+Generate API key baru:
+
+```bash
+openssl rand -hex 32
+```
+
+### Contoh Penggunaan NBI API
+
+```bash
+# Set API key sebagai variable
+export API_KEY="your-api-key-here"
+export NBI_URL="http://10.100.0.198:7557"
+
+# Tanpa API key - akan return 401
+curl $NBI_URL/devices
+# Output: Invalid or missing X-API-Key
+
+# Dengan API key - akan return 200
+curl -H "X-API-Key: $API_KEY" $NBI_URL/devices | jq
+
+# Get all presets
+curl -H "X-API-Key: $API_KEY" $NBI_URL/presets | jq
+
+# Get all provisions
+curl -H "X-API-Key: $API_KEY" $NBI_URL/provisions | jq
+
+# Get specific device
+curl -H "X-API-Key: $API_KEY" "$NBI_URL/devices/device-id-here" | jq
+
+# Query devices dengan filter
+curl -H "X-API-Key: $API_KEY" \
+  --data-urlencode 'query={"_deviceId._Manufacturer":"ZTE"}' \
+  -G $NBI_URL/devices | jq
+
+# Create/update preset
+curl -X PUT \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"weight":0,"channel":"default","events":"Registered"}' \
+  $NBI_URL/presets/my-preset
+
+# Create provision script
+curl -X PUT \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/x-ecmascript" \
+  -d 'log("Hello from provision");' \
+  $NBI_URL/provisions/my-provision
+
+# Delete preset
+curl -X DELETE -H "X-API-Key: $API_KEY" $NBI_URL/presets/my-preset
+
+# Refresh device (trigger inform)
+curl -X POST -H "X-API-Key: $API_KEY" \
+  "$NBI_URL/devices/device-id-here/tasks?name=refreshObject&objectName=InternetGatewayDevice"
+```
+
+### Apply Perubahan API Key
+
+Setelah mengubah API key di `nginx-nbi-auth.yaml`:
+
+```bash
+kubectl apply -f nginx-nbi-auth.yaml
+kubectl rollout restart deployment/genieacs -n genieacs
+kubectl rollout status deployment/genieacs -n genieacs
 ```
 
 ## Konfigurasi CPE Device
@@ -129,19 +227,20 @@ http://10.100.0.198:7547
 ## Struktur File
 
 ```
-genieacs/
-├── namespace.yaml          # Namespace definition
-├── configmap.yaml          # Environment configuration
-├── secret.yaml             # JWT secret (HARUS diganti!)
-├── mongodb-pvc.yaml        # MongoDB persistent storage (longhorn-backup)
-├── mongodb-deployment.yaml # MongoDB deployment
-├── mongodb-service.yaml    # MongoDB internal service
-├── genieacs-pvc.yaml       # GenieACS persistent storage (logs & ext)
-├── genieacs-deployment.yaml# GenieACS deployment
-├── genieacs-service.yaml   # GenieACS LoadBalancer (10.100.0.198)
-├── ingress.yaml            # Ingress (optional)
-├── kustomization.yaml      # Kustomize configuration
-└── README.md               # Dokumentasi ini
+k8s/
+├── namespace.yaml           # Namespace definition
+├── configmap.yaml           # Environment configuration
+├── secret.yaml              # JWT secret (HARUS diganti!)
+├── nginx-nbi-auth.yaml      # NBI API authentication (Nginx sidecar config)
+├── mongodb-pvc.yaml         # MongoDB persistent storage (longhorn-backup)
+├── mongodb-deployment.yaml  # MongoDB deployment
+├── mongodb-service.yaml     # MongoDB internal service
+├── genieacs-pvc.yaml        # GenieACS persistent storage (logs & ext)
+├── genieacs-deployment.yaml # GenieACS deployment + Nginx sidecar
+├── genieacs-service.yaml    # GenieACS LoadBalancer (10.100.0.198)
+├── ingress.yaml             # Ingress (optional)
+├── kustomization.yaml       # Kustomize configuration
+└── README.md                # Dokumentasi ini
 ```
 
 ## Storage
@@ -275,6 +374,8 @@ kubectl delete ns genieacs
 4. **Monitoring**: Tambahkan Prometheus/Grafana untuk monitoring
 5. **Network Policies**: Implement network policies untuk security
 6. **External MongoDB**: Pertimbangkan managed MongoDB (Atlas, DocumentDB) untuk high availability
+7. **NBI API Key**: Ganti API key default dengan key yang di-generate (`openssl rand -hex 32`)
+8. **JWT Secret**: Selalu generate JWT secret baru untuk setiap deployment
 
 ## Referensi
 

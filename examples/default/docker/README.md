@@ -1,6 +1,8 @@
-# GenieACS Docker Production Deployment
+# GenieACS Docker - Default Deployment
 
-Panduan deployment GenieACS menggunakan Docker Compose untuk environment production.
+Deployment GenieACS menggunakan Docker Compose (tanpa NBI API authentication).
+
+> Untuk deployment dengan NBI API authentication, lihat: `examples/nbi-auth/docker/`
 
 ## Prerequisites
 
@@ -11,238 +13,107 @@ Panduan deployment GenieACS menggunakan Docker Compose untuk environment product
 
 ## Quick Start
 
-### 1. Clone dan masuk ke direktori
+### 1. Masuk ke direktori
 
 ```bash
-cd examples/docker
+cd examples/default/docker
 ```
 
 ### 2. Konfigurasi Environment
 
-Copy file `.env.example` ke `.env`:
-
 ```bash
+# Copy template
 cp .env.example .env
-```
 
-Edit file `.env` dan generate JWT secret:
-
-```bash
 # Generate JWT secret
 openssl rand -hex 32
-```
 
-Paste hasil generate ke `GENIEACS_UI_JWT_SECRET` di file `.env`.
+# Edit .env dan paste JWT secret
+```
 
 ### 3. Jalankan GenieACS
 
 ```bash
-docker compose -f docker-compose.prod.yml up -d
+docker compose up -d
 ```
 
 ### 4. Buat Admin User
 
-Tunggu sampai container healthy (~60 detik), lalu buat user admin dari root project:
+Tunggu container healthy (~60 detik), lalu jalankan dari root project:
 
 ```bash
-cd ../..  # Kembali ke root project
+cd ../../..
 ./scripts/create-user.sh admin yourpassword admin
 ```
 
-Ganti `yourpassword` dengan password yang kuat.
-
 ### 5. Akses GenieACS
 
-- **Web UI**: http://localhost:3000
-- **NBI API**: http://localhost:7557
-- **CWMP**: http://localhost:7547
-- **File Server**: http://localhost:7567
-
-## Services & Ports
-
-| Service | Port | Deskripsi |
-|---------|------|-----------|
-| UI | 3000 | Web interface untuk manajemen |
-| CWMP | 7547 | TR-069 endpoint untuk CPE devices |
-| NBI | 7557 | Northbound API (tanpa auth) |
-| NBI Auth | 7558 | Northbound API (dengan X-API-Key) |
-| FS | 7567 | File server untuk firmware |
-
-## NBI API Authentication
-
-Untuk mengamankan NBI API dengan X-API-Key authentication:
-
-### 1. Generate API Key
-
-```bash
-openssl rand -hex 32
-```
-
-### 2. Tambahkan ke `.env`
-
-```bash
-GENIEACS_NBI_API_KEY=your-generated-api-key-here
-```
-
-### 3. Jalankan dengan profile `nbi-auth`
-
-```bash
-docker compose -f docker-compose.prod.yml --profile nbi-auth up -d
-```
-
-### 4. Akses NBI API
-
-```bash
-# Tanpa auth (port 7557) - masih bisa diakses
-curl http://localhost:7557/devices
-
-# Dengan auth (port 7558) - memerlukan X-API-Key
-curl -H "X-API-Key: your-api-key" http://localhost:7558/devices
-
-# Tanpa API key - return 401
-curl http://localhost:7558/devices
-```
-
-### Contoh Penggunaan NBI API
-
-```bash
-# Get semua devices
-curl -H "X-API-Key: your-api-key" http://localhost:7558/devices | jq
-
-# Get presets
-curl -H "X-API-Key: your-api-key" http://localhost:7558/presets | jq
-
-# Create preset
-curl -X PUT \
-  -H "X-API-Key: your-api-key" \
-  -H "Content-Type: application/json" \
-  -d '{"weight":0,"channel":"default","events":"Registered"}' \
-  http://localhost:7558/presets/my-preset
-```
+| Service | URL | Deskripsi |
+|---------|-----|-----------|
+| Web UI | http://localhost:3000 | Interface manajemen |
+| CWMP | http://localhost:7547 | TR-069 untuk CPE |
+| NBI API | http://localhost:7557 | Northbound API |
+| File Server | http://localhost:7567 | Firmware upload |
 
 ## Perintah Berguna
 
-### Melihat logs
-
 ```bash
-# Semua logs
-docker compose -f docker-compose.prod.yml logs -f
+# Melihat logs
+docker compose logs -f
 
-# Logs GenieACS saja
-docker compose -f docker-compose.prod.yml logs -f genieacs
+# Status containers
+docker compose ps
 
-# Logs MongoDB saja
-docker compose -f docker-compose.prod.yml logs -f mongo
+# Stop services
+docker compose down
+
+# Restart
+docker compose restart
+
+# Update image
+docker compose pull && docker compose up -d
 ```
 
-### Status containers
-
-```bash
-docker compose -f docker-compose.prod.yml ps
-```
-
-### Stop services
-
-```bash
-docker compose -f docker-compose.prod.yml down
-```
-
-### Stop dan hapus volumes (HATI-HATI: data akan hilang)
-
-```bash
-docker compose -f docker-compose.prod.yml down -v
-```
-
-### Restart services
-
-```bash
-docker compose -f docker-compose.prod.yml restart
-```
-
-### Update ke versi terbaru
-
-```bash
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
-```
-
-## Konfigurasi Lanjutan
-
-### Menggunakan Reverse Proxy
-
-Jika menggunakan reverse proxy (nginx/traefik), ubah port binding ke localhost saja di file `.env`:
-
-```bash
-GENIEACS_CWMP_PORT=127.0.0.1:7547
-GENIEACS_NBI_PORT=127.0.0.1:7557
-GENIEACS_FS_PORT=127.0.0.1:7567
-GENIEACS_UI_PORT=127.0.0.1:3000
-```
-
-### Custom Extensions
-
-Untuk menambahkan custom extensions, mount direktori ke `/opt/genieacs/ext`:
-
-```yaml
-volumes:
-  - ./my-extensions:/opt/genieacs/ext:ro
-```
+## Backup & Restore
 
 ### Backup Database
 
 ```bash
-# Backup
-docker exec genieacs-mongo mongodump --out /data/db/backup
-
-# Copy backup ke host
-docker cp genieacs-mongo:/data/db/backup ./backup
+docker exec mongo-genieacs mongodump --out /data/db/backup
+docker cp mongo-genieacs:/data/db/backup ./backup
 ```
 
 ### Restore Database
 
 ```bash
-# Copy backup ke container
-docker cp ./backup genieacs-mongo:/data/db/backup
-
-# Restore
-docker exec genieacs-mongo mongorestore /data/db/backup
+docker cp ./backup mongo-genieacs:/data/db/backup
+docker exec mongo-genieacs mongorestore /data/db/backup
 ```
+
+## Security Notes
+
+- NBI API pada port 7557 **tidak memiliki authentication**
+- Untuk mengamankan NBI API, gunakan: `examples/nbi-auth/docker/`
+- Atau bind ke localhost: `GENIEACS_NBI_PORT=127.0.0.1:7557`
 
 ## Troubleshooting
 
 ### Container tidak start
 
-Cek logs:
 ```bash
-docker compose -f docker-compose.prod.yml logs genieacs
+docker compose logs genieacs
 ```
 
-### MongoDB connection error
+### MongoDB error
 
-Pastikan MongoDB sudah healthy:
 ```bash
-docker compose -f docker-compose.prod.yml ps mongo
+docker compose ps mongo
+docker compose logs mongo
 ```
 
-### Port sudah digunakan
+### Port conflict
 
-Ubah port di file `.env` jika ada konflik dengan service lain.
-
-### JWT Secret tidak valid
-
-Pastikan `GENIEACS_UI_JWT_SECRET` sudah diisi di file `.env` dengan minimal 32 karakter.
-
-## Security Recommendations
-
-1. **Gunakan strong password** untuk admin user
-2. **Generate random JWT secret** dengan `openssl rand -hex 32`
-3. **Aktifkan NBI API authentication** dengan `--profile nbi-auth`
-4. **Gunakan reverse proxy** dengan HTTPS untuk production
-5. **Bind port ke localhost** jika menggunakan reverse proxy
-6. **Regular backup** database MongoDB
-7. **Update secara berkala** ke versi terbaru
-
-## Support
-
-- GitHub Issues: https://github.com/cepatkilatteknologi/genieacs/issues
-- Dokumentasi GenieACS: https://docs.genieacs.com
+Ubah port di `.env`:
+```bash
+GENIEACS_UI_PORT=3001
+```

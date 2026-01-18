@@ -54,56 +54,60 @@ openssl rand -hex 32
 # - GENIEACS_ADMIN_PASSWORD
 ```
 
-### Step 3: Setup & Build
+### Step 3: Setup & Start
 
 ```bash
 # Create required directories
 make setup
 
-# Build Docker image
-make build
-```
+# Start services (background)
+make up-d
 
-### Step 4: Start Services
-
-```bash
-# Start all services
-make up
-
-# Wait for services to be healthy (about 30-60 seconds)
+# Wait for services to be healthy
 make status
 ```
 
-### Step 5: Create Admin User
+### Step 4: Create Admin User
 
 ```bash
 # Create admin user from .env credentials
 make create-user
 ```
 
-### Step 6: Access Web UI
+### Step 5: Access Web UI
 
 Open http://localhost:3000 and login with credentials from your `.env` file:
 - Username: value of `GENIEACS_ADMIN_USERNAME`
 - Password: value of `GENIEACS_ADMIN_PASSWORD`
 
+### Step 6: Verify Services
+
+```bash
+# Test all endpoints
+make test
+```
+
 ## Project Structure
 
 ```
 .
-├── Dockerfile              # Multi-stage Docker build (npm install)
+├── Dockerfile              # Multi-stage Docker build
 ├── Makefile                # Build and management commands
-├── docker-compose.yml      # Service orchestration (development)
-├── docker-compose.prod.yml # Production deployment (uses Docker Hub image)
+├── docker-compose.yml      # Service orchestration
 ├── .env.example            # Environment template (copy to .env)
-├── .env.prod.example       # Production environment template
-├── .env                    # Your local configuration (git ignored)
 ├── config/
 │   ├── supervisord.conf    # Supervisor config for GenieACS services
 │   └── genieacs.logrotate  # Log rotation config
 ├── scripts/
-│   ├── create-user.sh      # User creation script
+│   ├── create-user.sh      # User creation script (PBKDF2-SHA512)
 │   └── run_with_env.sh     # Service runner script
+├── examples/
+│   ├── default/            # Basic deployment examples
+│   │   ├── docker/         # Docker Compose (production-ready)
+│   │   └── kubernetes/     # Kubernetes manifests
+│   └── nbi-auth/           # NBI API authentication examples
+│       ├── docker/         # Docker with Nginx proxy
+│       └── kubernetes/     # Kubernetes with Nginx sidecar
 ├── ext/                    # GenieACS extensions directory
 └── backups/                # MongoDB backups directory
 ```
@@ -128,7 +132,7 @@ Open http://localhost:3000 and login with credentials from your `.env` file:
 | `GENIEACS_FS_PORT` | `7567` | File server port |
 | `GENIEACS_UI_PORT` | `3000` | Web UI port |
 
-> **Note:** For Kubernetes deployment, NBI API authentication is handled via Nginx sidecar with X-API-Key header. See [NBI API Authentication](#nbi-api-authentication) section.
+> **Note:** For NBI API authentication with X-API-Key, see `examples/nbi-auth/`.
 
 ## Port Mapping
 
@@ -139,186 +143,77 @@ Open http://localhost:3000 and login with credentials from your `.env` file:
 | FS | 7567 | TCP | File Server |
 | UI | 3000 | TCP | Web Interface |
 
-## Production Deployment
+## Deployment Examples
 
-For production deployment using pre-built image from Docker Hub:
+### Docker Compose (Production)
 
-### Quick Production Setup
-
-```bash
-# 1. Download production files
-curl -O https://raw.githubusercontent.com/Cepat-Kilat-Teknologi/genieacs-docker/main/docker-compose.prod.yml
-curl -O https://raw.githubusercontent.com/Cepat-Kilat-Teknologi/genieacs-docker/main/.env.prod.example
-
-# 2. Configure environment
-cp .env.prod.example .env
-
-# 3. Generate JWT secret and update .env
-openssl rand -hex 32
-# Edit .env and set GENIEACS_UI_JWT_SECRET and GENIEACS_ADMIN_PASSWORD
-
-# 4. Start services
-docker compose -f docker-compose.prod.yml up -d
-
-# 5. Wait for services to be healthy (check status)
-docker compose -f docker-compose.prod.yml ps
-
-# 6. Create admin user
-docker exec genieacs /bin/bash -c 'cd /opt/genieacs && node -e "
-const crypto = require(\"crypto\");
-const salt = crypto.randomBytes(16).toString(\"hex\");
-const hash = crypto.createHash(\"sha256\").update(\"YOUR_PASSWORD\" + salt).digest(\"hex\");
-console.log(JSON.stringify({_id:\"admin\",password:hash,salt:salt,roles:\"admin\"}));
-"' | docker exec -i genieacs-mongo mongosh genieacs --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
-```
-
-### Production Features
-
-- Pre-built multi-arch image (amd64, arm64)
-- Resource limits (CPU, Memory)
-- Log rotation with size limits
-- Health checks with proper timeouts
-- Security hardening enabled
-- MongoDB not exposed to host
-
-### Production Compose Commands
+For production deployment with pre-built images:
 
 ```bash
-# Start services
-docker compose -f docker-compose.prod.yml up -d
-
-# View logs
-docker compose -f docker-compose.prod.yml logs -f
-
-# Stop services
-docker compose -f docker-compose.prod.yml down
-
-# Update to latest image
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml up -d
+cd examples/default/docker
+cp .env.example .env
+# Edit .env with your settings
+docker compose up -d
 ```
 
-## Kubernetes Deployment
+See `examples/default/docker/README.md` for details.
 
-For Kubernetes deployment, use the manifests in the `k8s/` directory.
+### Kubernetes
 
-### Prerequisites
-
-- Kubernetes cluster (v1.25+)
-- kubectl configured
-- Nginx Ingress Controller (optional, for ingress)
-- Longhorn or other storage provisioner
-
-### Quick Kubernetes Setup
+For Kubernetes deployment:
 
 ```bash
-# 1. Apply all manifests
-kubectl apply -k k8s/
-
-# 2. Wait for pods to be ready
-kubectl get pods -n genieacs -w
-
-# 3. Access services via LoadBalancer IP
-kubectl get svc -n genieacs
+cd examples/default/kubernetes
+# Edit secret.yaml and configmap.yaml
+kubectl apply -k .
 ```
 
-### Kubernetes Files
-
-| File | Description |
-|------|-------------|
-| `namespace.yaml` | GenieACS namespace |
-| `configmap.yaml` | Environment configuration |
-| `secret.yaml` | Sensitive data (JWT secret) |
-| `nginx-nbi-auth.yaml` | NBI API authentication (Nginx sidecar) |
-| `mongodb-*.yaml` | MongoDB deployment, service, PVC |
-| `genieacs-*.yaml` | GenieACS deployment, service, PVC |
-| `ingress.yaml` | Ingress rules (optional) |
-| `kustomization.yaml` | Kustomize configuration |
+See `examples/default/kubernetes/README.md` for details.
 
 ### NBI API Authentication
 
-The NBI API is secured using X-API-Key header authentication via Nginx sidecar.
+GenieACS NBI API does not have native authentication. For secured NBI access:
 
-**Configuration:** Edit `k8s/nginx-nbi-auth.yaml` to change the API key:
+- **Docker**: See `examples/nbi-auth/docker/`
+- **Kubernetes**: See `examples/nbi-auth/kubernetes/`
 
-```nginx
-if ($http_x_api_key != "your-api-key-here") {
-    return 401 "Invalid or missing X-API-Key";
-}
-```
-
-**Usage:**
-
-```bash
-# Without API key - returns 401
-curl http://<LOADBALANCER_IP>:7557/devices
-
-# With API key - returns 200
-curl -H "X-API-Key: your-api-key-here" http://<LOADBALANCER_IP>:7557/devices
-
-# Example: Get all devices
-curl -H "X-API-Key: your-api-key-here" http://<LOADBALANCER_IP>:7557/devices | jq
-
-# Example: Get presets
-curl -H "X-API-Key: your-api-key-here" http://<LOADBALANCER_IP>:7557/presets | jq
-
-# Example: Create/update preset
-curl -X PUT \
-  -H "X-API-Key: your-api-key-here" \
-  -H "Content-Type: application/json" \
-  -d '{"weight":0,"channel":"default","events":"Registered"}' \
-  http://<LOADBALANCER_IP>:7557/presets/my-preset
-```
-
-**Generate new API key:**
-
-```bash
-# Generate random 32-byte hex key
-openssl rand -hex 32
-```
-
-### Kubernetes Management Commands
-
-```bash
-# View all resources
-kubectl get all -n genieacs
-
-# View logs
-kubectl logs -f deployment/genieacs -n genieacs
-
-# Restart deployment
-kubectl rollout restart deployment/genieacs -n genieacs
-
-# Scale deployment
-kubectl scale deployment/genieacs --replicas=2 -n genieacs
-
-# Access MongoDB shell
-kubectl exec -it deployment/mongodb -n genieacs -- mongosh genieacs
-
-# Access GenieACS shell
-kubectl exec -it deployment/genieacs -n genieacs -- /bin/bash
-```
+These examples use Nginx as a reverse proxy with X-API-Key header authentication.
 
 ## Management Commands
+
+### Quick Reference
+
+```bash
+make help         # Show all commands
+make setup        # Create directories and .env
+make up-d         # Start services (background)
+make create-user  # Create admin user
+make test         # Test all endpoints
+make status       # Check health status
+make logs         # View logs
+make down         # Stop services
+```
 
 ### Build & Deployment
 
 ```bash
-make setup        # Create required directories and config files
-make build        # Build image for current architecture
+make build        # Build Docker image
 make buildx       # Build multi-platform image
-make buildx-push  # Build and push multi-platform image
-make push         # Push image to registry
+make buildx-push  # Build and push to registry
 ```
 
 ### Service Management
 
 ```bash
-make up           # Start services in background
+make up           # Start services (foreground)
+make up-d         # Start services (background)
 make down         # Stop and remove services
 make stop         # Stop services (keep containers)
 make restart      # Restart services
 make logs         # View real-time logs
+make status       # Check service status and health
+make ps           # Show running containers
+make stats        # Show resource usage
 ```
 
 ### User Management
@@ -330,31 +225,21 @@ make create-user  # Create admin user from .env credentials
 ./scripts/create-user.sh myuser mypassword admin
 ```
 
-### Monitoring & Status
-
-```bash
-make status       # Check service status and health
-make ps           # Show running containers
-make test         # Test all service endpoints
-make stats        # Show container resource usage
-```
-
 ### Database Operations
 
 ```bash
-make shell-mongo     # Access MongoDB shell
-make shell-genieacs  # Access GenieACS container shell
-make backup          # Backup MongoDB database
+make shell-mongo  # Access MongoDB shell
+make backup       # Backup MongoDB database
 make restore FILE=backups/backup_20240101_120000.gz  # Restore backup
 ```
 
 ### Maintenance
 
 ```bash
-make clean        # Stop services and remove images
+make clean        # Stop services and remove volumes
+make fresh        # Clean and start fresh
 make prune        # Prune unused Docker resources
 make scan         # Scan image for vulnerabilities
-make verify-deps  # Verify dependency versions
 ```
 
 ## Volumes & Data Persistence
@@ -369,7 +254,6 @@ make verify-deps  # Verify dependency versions
 ## Security Features
 
 - JWT-based authentication for UI
-- X-API-Key authentication for NBI API (Kubernetes)
 - No default credentials (must be configured via `.env`)
 - MongoDB not exposed to host by default
 - `no-new-privileges` security option enabled
@@ -377,13 +261,14 @@ make verify-deps  # Verify dependency versions
 - Minimal base image (debian:bookworm-slim)
 - Configurable port bindings
 - Environment variables for sensitive data
+- Optional NBI API authentication (see `examples/nbi-auth/`)
 
 ### Security Checklist for Production
 
 - [ ] Generate unique `GENIEACS_UI_JWT_SECRET` using `openssl rand -hex 32`
 - [ ] Set strong `GENIEACS_ADMIN_PASSWORD`
 - [ ] Enable `GENIEACS_UI_AUTH=true`
-- [ ] Configure NBI API key in `k8s/nginx-nbi-auth.yaml` (Kubernetes)
+- [ ] Enable NBI API authentication (see `examples/nbi-auth/`)
 - [ ] Consider binding ports to `127.0.0.1` if behind reverse proxy
 - [ ] Regular backups using `make backup`
 - [ ] Keep Docker images updated
@@ -400,20 +285,13 @@ Both containers include automated health checks:
 ### Manual Health Testing
 
 ```bash
-# Test MongoDB
+# Test all services
+make test
+
+# Or manually:
 docker exec mongo-genieacs mongosh --eval "db.adminCommand('ping')"
-
-# Test GenieACS UI
 curl -f http://localhost:3000/
-
-# Test GenieACS CWMP
-curl -f http://localhost:7547/
-
-# Test GenieACS NBI (Docker Compose)
-curl -f http://localhost:7557/
-
-# Test GenieACS NBI (Kubernetes - requires X-API-Key)
-curl -H "X-API-Key: your-api-key" http://<LOADBALANCER_IP>:7557/devices
+curl http://localhost:7557/devices
 ```
 
 ## Troubleshooting
@@ -428,15 +306,15 @@ make status
 make create-user
 
 # Check if user exists in MongoDB
-docker exec mongo-genieacs mongosh genieacs --eval "db.users.find()"
+docker exec mongo-genieacs mongosh genieacs --eval "db.users.find({}, {_id:1, roles:1})"
 ```
 
 ### Port Already in Use
 
 ```bash
 # Check which process is using the port
-sudo lsof -i :3000
-sudo lsof -i :7547
+lsof -i :3000
+lsof -i :7547
 
 # Use alternative ports in .env
 GENIEACS_UI_PORT=3001
@@ -456,18 +334,6 @@ docker exec mongo-genieacs mongosh --eval "db.adminCommand('ping')"
 make restart
 ```
 
-### Build Failures
-
-```bash
-# Clean and rebuild
-make clean
-make build
-
-# Check Docker disk space
-docker system df
-make prune
-```
-
 ### View Logs
 
 ```bash
@@ -480,13 +346,12 @@ docker logs mongo-genieacs -f
 
 # GenieACS internal logs
 docker exec genieacs ls -la /var/log/genieacs/
-docker exec genieacs cat /var/log/genieacs/cwmp-access.log
 ```
 
 ## Docker Images
 
 - **Base Image**: `debian:bookworm-slim`
-- **Node.js**: 24 LTS (Krypton)
+- **Node.js**: 24 LTS
 - **MongoDB**: 8.0
 - **Image Tags**:
   - `cepatkilatteknologi/genieacs:v1.2.13`

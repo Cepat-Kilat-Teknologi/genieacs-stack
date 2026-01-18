@@ -13,7 +13,6 @@ data:
   # Authentication settings
   GENIEACS_UI_AUTH: "true"
   # NBI Auth handled via nginx sidecar with X-API-Key (see nginx-nbi-auth.yaml)
-  GENIEACS_NBI_AUTH: "false"
 
   # Log files - Access logs disabled to prevent disk growth
   # GENIEACS_CWMP_ACCESS_LOG_FILE: "/var/log/genieacs/cwmp-access.log"

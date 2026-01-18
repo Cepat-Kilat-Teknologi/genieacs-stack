@@ -1,4 +1,8 @@
-# GenieACS Kubernetes Deployment
+# GenieACS Kubernetes - NBI API Authentication
+
+Deployment GenieACS di Kubernetes dengan X-API-Key authentication untuk NBI API.
+
+> Untuk deployment tanpa NBI auth, lihat: `examples/default/kubernetes/`
 
 GenieACS adalah Auto Configuration Server (ACS) open-source untuk mengelola perangkat CPE menggunakan protokol TR-069 (CWMP).
 
@@ -315,20 +319,23 @@ kubectl exec -it -n genieacs deployment/genieacs -- nc -zv mongodb 27017
 
 ### Reset Admin Password
 
-Reset password via MongoDB:
+Reset password via MongoDB (menggunakan PBKDF2-SHA512):
 
 ```bash
-# Generate new password hash
-SALT=$(openssl rand -hex 16)
-PASSWORD="newpassword123"
-HASH=$(echo -n "${PASSWORD}${SALT}" | openssl dgst -sha256 -hex | awk '{print $2}')
+# Masuk ke pod GenieACS
+kubectl exec -it -n genieacs deployment/genieacs -- /bin/bash
 
-# Update di MongoDB
-kubectl exec -n genieacs deployment/mongodb -- mongosh genieacs --eval "
-  db.users.updateOne(
-    { _id: 'admin' },
-    { \$set: { password: '${HASH}', salt: '${SALT}' } }
-  )
+# Di dalam pod, generate dan update password
+node -e "
+const crypto = require('crypto');
+const password = 'newpassword123';
+const salt = crypto.randomBytes(64).toString('hex');
+const hash = crypto.pbkdf2Sync(password, salt, 10000, 128, 'sha512').toString('hex');
+console.log(JSON.stringify({password: hash, salt: salt}));
+" | mongosh mongodb:27017/genieacs --eval "
+const data = JSON.parse(require('fs').readFileSync('/dev/stdin','utf8'));
+db.users.updateOne({_id:'admin'}, {\$set: data});
+print('Password updated!');
 "
 ```
 

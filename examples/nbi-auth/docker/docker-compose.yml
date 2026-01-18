@@ -1,0 +1,157 @@
+# GenieACS Docker Compose - NBI API Authentication
+# Deployment dengan X-API-Key authentication untuk NBI API
+#
+# Usage:
+#   1. cp .env.example .env
+#   2. Edit .env: set JWT_SECRET dan NBI_API_KEY
+#   3. docker compose up -d
+
+services:
+  ### MongoDB Database ###
+  mongo:
+    image: mongo:8.0
+    container_name: mongo-genieacs
+    restart: always
+    environment:
+      MONGO_DATA_DIR: /data/db
+      MONGO_LOG_DIR: /var/log/mongodb
+    volumes:
+      - mongo_data:/data/db
+      - mongo_configdb:/data/configdb
+    networks:
+      - genieacs_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  ### GenieACS Application ###
+  genieacs:
+    image: cepatkilatteknologi/genieacs:latest
+    container_name: genieacs
+    restart: always
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      # Security - REQUIRED
+      GENIEACS_UI_JWT_SECRET: ${GENIEACS_UI_JWT_SECRET:?JWT secret is required}
+      GENIEACS_UI_AUTH: ${GENIEACS_UI_AUTH:-true}
+
+      # MongoDB
+      GENIEACS_MONGODB_CONNECTION_URL: mongodb://mongo:27017/genieacs
+
+      # Log files
+      GENIEACS_CWMP_ACCESS_LOG_FILE: /var/log/genieacs/cwmp-access.log
+      GENIEACS_NBI_ACCESS_LOG_FILE: /var/log/genieacs/nbi-access.log
+      GENIEACS_FS_ACCESS_LOG_FILE: /var/log/genieacs/fs-access.log
+      GENIEACS_UI_ACCESS_LOG_FILE: /var/log/genieacs/ui-access.log
+      GENIEACS_DEBUG_FILE: /var/log/genieacs/debug.yaml
+
+      # Paths
+      GENIEACS_EXT_DIR: /opt/genieacs/ext
+      NODE_ENV: production
+    ports:
+      - "${GENIEACS_CWMP_PORT:-7547}:7547"   # CWMP (TR-069)
+      # NBI port 7557 NOT exposed - access via nbi-proxy only
+      - "${GENIEACS_FS_PORT:-7567}:7567"     # File Server
+      - "${GENIEACS_UI_PORT:-3000}:3000"     # Web UI
+    volumes:
+      - genieacs_data:/opt/genieacs
+      - genieacs_logs:/var/log/genieacs
+      - genieacs_ext:/opt/genieacs/ext
+    networks:
+      - genieacs_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  ### NBI API Proxy with X-API-Key Authentication ###
+  nbi-proxy:
+    image: nginx:alpine
+    container_name: genieacs-nbi-proxy
+    restart: always
+    depends_on:
+      genieacs:
+        condition: service_healthy
+    environment:
+      GENIEACS_NBI_API_KEY: ${GENIEACS_NBI_API_KEY:?NBI API Key is required}
+    volumes:
+      - ./config/nginx/nbi-proxy.conf.template:/etc/nginx/nbi-proxy.conf.template:ro
+      - ./config/nginx/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+    entrypoint: ["/docker-entrypoint.sh"]
+    ports:
+      - "${GENIEACS_NBI_PORT:-7557}:7558"
+    networks:
+      - genieacs_network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7558/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 32M
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mongo_data:
+    name: mongo-genieacs-data
+  mongo_configdb:
+    name: mongo-genieacs-configdb
+  genieacs_data:
+    name: genieacs-app-data
+  genieacs_logs:
+    name: genieacs-logs
+  genieacs_ext:
+    name: genieacs-ext
+
+networks:
+  genieacs_network:
+    name: genieacs-network
+    driver: bridge

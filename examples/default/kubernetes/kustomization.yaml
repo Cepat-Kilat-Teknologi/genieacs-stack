@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: genieacs
+
+resources:
+  - namespace.yaml
+  - secret.yaml
+  - configmap.yaml
+  - mongodb-pvc.yaml
+  - mongodb-deployment.yaml
+  - mongodb-service.yaml
+  - genieacs-pvc.yaml
+  - genieacs-deployment.yaml
+  - genieacs-service.yaml
+
+commonLabels:
+  app.kubernetes.io/managed-by: kustomize

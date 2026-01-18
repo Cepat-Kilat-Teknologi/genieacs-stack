@@ -1,0 +1,55 @@
+# Nginx NBI API Proxy with X-API-Key Authentication
+# API key injected via: GENIEACS_NBI_API_KEY environment variable
+
+worker_processes auto;
+error_log /dev/stderr warn;
+pid /tmp/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    access_log /dev/stdout;
+
+    # Temp paths for non-root user
+    client_body_temp_path /tmp/client_temp;
+    proxy_temp_path /tmp/proxy_temp;
+    fastcgi_temp_path /tmp/fastcgi_temp;
+    uwsgi_temp_path /tmp/uwsgi_temp;
+    scgi_temp_path /tmp/scgi_temp;
+
+    server {
+        listen 7558;
+        server_name localhost;
+
+        # Health check endpoint (no auth required)
+        location /health {
+            return 200 'OK';
+            add_header Content-Type text/plain;
+        }
+
+        location / {
+            # Validate X-API-Key header
+            if ($http_x_api_key != "${GENIEACS_NBI_API_KEY}") {
+                return 401 '{"error": "Invalid or missing X-API-Key"}';
+            }
+
+            # Proxy to GenieACS NBI
+            proxy_pass http://genieacs:7557;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            # Timeout settings
+            proxy_read_timeout 3600s;
+            proxy_send_timeout 3600s;
+            proxy_connect_timeout 60s;
+
+            # Buffer settings
+            proxy_buffering off;
+            proxy_request_buffering off;
+        }
+    }
+}

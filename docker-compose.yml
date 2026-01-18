@@ -34,7 +34,6 @@ services:
     environment:
       # Security settings
       GENIEACS_UI_JWT_SECRET: ${GENIEACS_UI_JWT_SECRET:?JWT secret is required}
-      GENIEACS_NBI_AUTH: ${GENIEACS_NBI_AUTH:-true}
       GENIEACS_UI_AUTH: ${GENIEACS_UI_AUTH:-true}
       # Log files
       GENIEACS_CWMP_ACCESS_LOG_FILE: /var/log/genieacs/cwmp-access.log
@@ -49,7 +48,7 @@ services:
     ports:
       # CWMP (TR-069) - CPE devices connect here
       - "${GENIEACS_CWMP_PORT:-7547}:7547"
-      # NBI API - Restrict to localhost in production if not needed externally
+      # NBI API
       - "${GENIEACS_NBI_PORT:-7557}:7557"
       # File Server
       - "${GENIEACS_FS_PORT:-7567}:7567"

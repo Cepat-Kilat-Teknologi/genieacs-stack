@@ -42,10 +42,11 @@ docker compose -f docker-compose.prod.yml up -d
 
 ### 4. Buat Admin User
 
-Tunggu sampai container healthy, lalu buat user admin:
+Tunggu sampai container healthy (~60 detik), lalu buat user admin dari root project:
 
 ```bash
-docker exec genieacs /opt/genieacs/scripts/create-user.sh admin yourpassword admin
+cd ../..  # Kembali ke root project
+./scripts/create-user.sh admin yourpassword admin
 ```
 
 Ganti `yourpassword` dengan password yang kuat.
@@ -63,8 +64,61 @@ Ganti `yourpassword` dengan password yang kuat.
 |---------|------|-----------|
 | UI | 3000 | Web interface untuk manajemen |
 | CWMP | 7547 | TR-069 endpoint untuk CPE devices |
-| NBI | 7557 | Northbound API untuk integrasi |
+| NBI | 7557 | Northbound API (tanpa auth) |
+| NBI Auth | 7558 | Northbound API (dengan X-API-Key) |
 | FS | 7567 | File server untuk firmware |
+
+## NBI API Authentication
+
+Untuk mengamankan NBI API dengan X-API-Key authentication:
+
+### 1. Generate API Key
+
+```bash
+openssl rand -hex 32
+```
+
+### 2. Tambahkan ke `.env`
+
+```bash
+GENIEACS_NBI_API_KEY=your-generated-api-key-here
+```
+
+### 3. Jalankan dengan profile `nbi-auth`
+
+```bash
+docker compose -f docker-compose.prod.yml --profile nbi-auth up -d
+```
+
+### 4. Akses NBI API
+
+```bash
+# Tanpa auth (port 7557) - masih bisa diakses
+curl http://localhost:7557/devices
+
+# Dengan auth (port 7558) - memerlukan X-API-Key
+curl -H "X-API-Key: your-api-key" http://localhost:7558/devices
+
+# Tanpa API key - return 401
+curl http://localhost:7558/devices
+```
+
+### Contoh Penggunaan NBI API
+
+```bash
+# Get semua devices
+curl -H "X-API-Key: your-api-key" http://localhost:7558/devices | jq
+
+# Get presets
+curl -H "X-API-Key: your-api-key" http://localhost:7558/presets | jq
+
+# Create preset
+curl -X PUT \
+  -H "X-API-Key: your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"weight":0,"channel":"default","events":"Registered"}' \
+  http://localhost:7558/presets/my-preset
+```
 
 ## Perintah Berguna
 
@@ -182,10 +236,11 @@ Pastikan `GENIEACS_UI_JWT_SECRET` sudah diisi di file `.env` dengan minimal 32 k
 
 1. **Gunakan strong password** untuk admin user
 2. **Generate random JWT secret** dengan `openssl rand -hex 32`
-3. **Gunakan reverse proxy** dengan HTTPS untuk production
-4. **Batasi akses NBI API** hanya dari IP yang diperlukan
-5. **Regular backup** database MongoDB
-6. **Update secara berkala** ke versi terbaru
+3. **Aktifkan NBI API authentication** dengan `--profile nbi-auth`
+4. **Gunakan reverse proxy** dengan HTTPS untuk production
+5. **Bind port ke localhost** jika menggunakan reverse proxy
+6. **Regular backup** database MongoDB
+7. **Update secara berkala** ke versi terbaru
 
 ## Support
 

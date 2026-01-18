@@ -23,7 +23,9 @@ data:
 
             location / {
                 # Validate X-API-Key header
-                if ($http_x_api_key != "36db3afc571ee42eca201201d3a67e710e4129fb432ebfec2eb0cd96fdb70f7b") {
+                # IMPORTANT: Change this API key before deployment!
+                # Generate with: openssl rand -hex 32
+                if ($http_x_api_key != "changeme-generate-with-openssl-rand-hex-32") {
                     return 401 "Invalid or missing X-API-Key";
                 }
 

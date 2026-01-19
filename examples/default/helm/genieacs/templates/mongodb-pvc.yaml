@@ -1,0 +1,37 @@
+{{- if .Values.mongodb.enabled }}
+{{- if .Values.mongodb.persistence.data.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "genieacs.mongodb.name" . }}-data
+  labels:
+    {{- include "genieacs.mongodb.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.mongodb.persistence.data.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.mongodb.persistence.data.size }}
+  {{- if .Values.mongodb.persistence.data.storageClass }}
+  storageClassName: {{ .Values.mongodb.persistence.data.storageClass | quote }}
+  {{- end }}
+{{- end }}
+---
+{{- if .Values.mongodb.persistence.configdb.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "genieacs.mongodb.name" . }}-configdb
+  labels:
+    {{- include "genieacs.mongodb.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.mongodb.persistence.configdb.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.mongodb.persistence.configdb.size }}
+  {{- if .Values.mongodb.persistence.configdb.storageClass }}
+  storageClassName: {{ .Values.mongodb.persistence.configdb.storageClass | quote }}
+  {{- end }}
+{{- end }}
+{{- end }}

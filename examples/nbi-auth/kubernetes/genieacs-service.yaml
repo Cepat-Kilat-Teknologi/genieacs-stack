@@ -8,7 +8,7 @@ metadata:
     app.kubernetes.io/component: app
 spec:
   type: LoadBalancer
-  loadBalancerIP: 10.100.0.198
+  # loadBalancerIP: 10.100.0.198  # Uncomment and set IP for production
   ports:
     # CWMP (TR-069) - CPE devices connect here
     - port: 7547

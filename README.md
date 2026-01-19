@@ -104,10 +104,12 @@ make test
 ├── examples/
 │   ├── default/            # Basic deployment examples
 │   │   ├── docker/         # Docker Compose (production-ready)
-│   │   └── kubernetes/     # Kubernetes manifests
+│   │   ├── kubernetes/     # Kubernetes manifests (Kustomize)
+│   │   └── helm/           # Helm chart
 │   └── nbi-auth/           # NBI API authentication examples
 │       ├── docker/         # Docker with Nginx proxy
-│       └── kubernetes/     # Kubernetes with Nginx sidecar
+│       ├── kubernetes/     # Kubernetes with Nginx sidecar
+│       └── helm/           # Helm chart with NBI auth
 ├── ext/                    # GenieACS extensions directory
 └── backups/                # MongoDB backups directory
 ```
@@ -158,9 +160,9 @@ docker compose up -d
 
 See `examples/default/docker/README.md` for details.
 
-### Kubernetes
+### Kubernetes (Kustomize)
 
-For Kubernetes deployment:
+For Kubernetes deployment using Kustomize:
 
 ```bash
 cd examples/default/kubernetes
@@ -170,12 +172,31 @@ kubectl apply -k .
 
 See `examples/default/kubernetes/README.md` for details.
 
+### Helm
+
+For Kubernetes deployment using Helm:
+
+```bash
+# Install from local chart
+helm install genieacs ./examples/default/helm/genieacs \
+  --create-namespace \
+  --namespace genieacs
+
+# Or with custom values
+helm install genieacs ./examples/default/helm/genieacs \
+  --namespace genieacs \
+  --set secret.jwtSecret="$(openssl rand -hex 32)"
+```
+
+See `examples/default/helm/README.md` for details.
+
 ### NBI API Authentication
 
 GenieACS NBI API does not have native authentication. For secured NBI access:
 
 - **Docker**: See `examples/nbi-auth/docker/`
 - **Kubernetes**: See `examples/nbi-auth/kubernetes/`
+- **Helm**: See `examples/nbi-auth/helm/`
 
 These examples use Nginx as a reverse proxy with X-API-Key header authentication.
 

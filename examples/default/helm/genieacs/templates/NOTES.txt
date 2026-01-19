@@ -1,0 +1,50 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }}
+  $ helm get all {{ .Release.Name }}
+
+GenieACS has been deployed with the following services:
+
+{{- if eq .Values.genieacs.service.type "LoadBalancer" }}
+
+  Get the application URL by running:
+
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  You can watch the status by running:
+    kubectl get svc -n {{ .Release.Namespace }} {{ include "genieacs.fullname" . }} -w
+
+  Once available, you can access:
+    - Web UI:     http://localhost:{{ .Values.genieacs.service.ports.ui }}
+    - CWMP:       http://localhost:{{ .Values.genieacs.service.ports.cwmp }}
+    - NBI API:    http://localhost:{{ .Values.genieacs.service.ports.nbi }}
+    - File Server: http://localhost:{{ .Values.genieacs.service.ports.fs }}
+
+{{- else if eq .Values.genieacs.service.type "NodePort" }}
+
+  Get the NodePort by running:
+    export NODE_PORT=$(kubectl get -n {{ .Release.Namespace }} -o jsonpath="{.spec.ports[?(@.name=='ui')].nodePort}" svc {{ include "genieacs.fullname" . }})
+    export NODE_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[?(@.type=='InternalIP')].address}")
+    echo "Web UI: http://$NODE_IP:$NODE_PORT"
+
+{{- else if eq .Values.genieacs.service.type "ClusterIP" }}
+
+  Access the application via port-forward:
+    kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "genieacs.fullname" . }} 3000:{{ .Values.genieacs.service.ports.ui }} 7547:{{ .Values.genieacs.service.ports.cwmp }} 7557:{{ .Values.genieacs.service.ports.nbi }} 7567:{{ .Values.genieacs.service.ports.fs }}
+
+  Then access:
+    - Web UI:     http://localhost:3000
+    - CWMP:       http://localhost:7547
+    - NBI API:    http://localhost:7557
+    - File Server: http://localhost:7567
+
+{{- end }}
+
+To check the status of the pods:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+To view logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "genieacs.name" . }} -f

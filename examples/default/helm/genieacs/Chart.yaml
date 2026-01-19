@@ -1,0 +1,17 @@
+apiVersion: v2
+name: genieacs
+description: A Helm chart for GenieACS - Open Source TR-069 Remote Management Solution
+type: application
+version: 0.1.0
+appVersion: "1.2.13"
+keywords:
+  - genieacs
+  - tr-069
+  - cwmp
+  - acs
+  - network-management
+home: https://genieacs.com
+sources:
+  - https://github.com/genieacs/genieacs
+maintainers:
+  - name: Sumitro Aji Prabowo

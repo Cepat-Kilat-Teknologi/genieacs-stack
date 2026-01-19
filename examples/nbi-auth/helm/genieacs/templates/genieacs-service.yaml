@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "genieacs.fullname" . }}
+  labels:
+    {{- include "genieacs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  type: {{ .Values.genieacs.service.type }}
+  ports:
+    - port: {{ .Values.genieacs.service.ports.cwmp }}
+      targetPort: cwmp
+      protocol: TCP
+      name: cwmp
+    - port: {{ .Values.genieacs.service.ports.nbi }}
+      {{- if .Values.nbiAuth.enabled }}
+      targetPort: nbi-auth
+      {{- else }}
+      targetPort: nbi
+      {{- end }}
+      protocol: TCP
+      name: nbi
+    - port: {{ .Values.genieacs.service.ports.fs }}
+      targetPort: fs
+      protocol: TCP
+      name: fs
+    - port: {{ .Values.genieacs.service.ports.ui }}
+      targetPort: ui
+      protocol: TCP
+      name: ui
+  selector:
+    {{- include "genieacs.selectorLabels" . | nindent 4 }}

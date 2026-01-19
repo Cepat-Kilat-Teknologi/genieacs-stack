@@ -19,10 +19,10 @@ spec:
         app.kubernetes.io/name: genieacs
         app.kubernetes.io/component: app
     spec:
-      imagePullSecrets:
-        - name: dockerhub-secret
-      nodeSelector:
-        longhorn.io/storage: "enabled"
+      # imagePullSecrets:
+      #   - name: dockerhub-secret  # Uncomment for private registry
+      # nodeSelector:
+      #   longhorn.io/storage: "enabled"  # Uncomment for production
       initContainers:
         # Fix permissions for log and ext directories
         - name: fix-permissions
@@ -71,7 +71,7 @@ spec:
               memory: "64Mi"
         - name: genieacs
           image: cepatkilatteknologi/genieacs:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 7547
               name: cwmp

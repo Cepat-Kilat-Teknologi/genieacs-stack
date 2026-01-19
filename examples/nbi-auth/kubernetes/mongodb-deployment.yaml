@@ -19,8 +19,8 @@ spec:
         app.kubernetes.io/name: mongodb
         app.kubernetes.io/component: database
     spec:
-      nodeSelector:
-        longhorn.io/storage: "enabled"
+      # nodeSelector:
+      #   longhorn.io/storage: "enabled"  # Uncomment for production
       containers:
         - name: mongodb
           image: mongo:8.0

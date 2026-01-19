@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "genieacs.fullname" . }}-config
+  labels:
+    {{- include "genieacs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: config
+data:
+  {{- if .Values.mongodb.enabled }}
+  GENIEACS_MONGODB_CONNECTION_URL: {{ printf "mongodb://%s:%d/genieacs" (include "genieacs.mongodb.name" .) (int .Values.mongodb.service.port) | quote }}
+  {{- else }}
+  GENIEACS_MONGODB_CONNECTION_URL: {{ .Values.config.mongodbConnectionUrl | quote }}
+  {{- end }}
+  GENIEACS_UI_AUTH: {{ .Values.config.uiAuth | quote }}
+  GENIEACS_EXT_DIR: {{ .Values.config.extDir | quote }}
+  NODE_ENV: {{ .Values.config.nodeEnv | quote }}

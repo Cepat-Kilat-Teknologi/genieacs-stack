@@ -9,7 +9,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn-backup
+  # storageClassName: longhorn-backup  # Uncomment for production with Longhorn
   resources:
     requests:
       storage: 10Gi
@@ -25,7 +25,7 @@ metadata:
 spec:
   accessModes:
     - ReadWriteOnce
-  storageClassName: longhorn-backup
+  # storageClassName: longhorn-backup  # Uncomment for production with Longhorn
   resources:
     requests:
       storage: 1Gi

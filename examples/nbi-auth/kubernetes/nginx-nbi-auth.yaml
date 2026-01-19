@@ -21,6 +21,12 @@ data:
             listen 7558;
             server_name localhost;
 
+            # Health check endpoint (no auth required)
+            location /health {
+                return 200 'OK';
+                add_header Content-Type text/plain;
+            }
+
             location / {
                 # Validate X-API-Key header
                 # IMPORTANT: Change this API key before deployment!

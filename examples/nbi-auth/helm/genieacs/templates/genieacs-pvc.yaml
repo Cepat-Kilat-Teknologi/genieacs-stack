@@ -1,0 +1,37 @@
+{{- if .Values.genieacs.persistence.logs.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "genieacs.fullname" . }}-logs
+  labels:
+    {{- include "genieacs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  accessModes:
+    - {{ .Values.genieacs.persistence.logs.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.genieacs.persistence.logs.size }}
+  {{- if .Values.genieacs.persistence.logs.storageClass }}
+  storageClassName: {{ .Values.genieacs.persistence.logs.storageClass | quote }}
+  {{- end }}
+{{- end }}
+---
+{{- if .Values.genieacs.persistence.ext.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "genieacs.fullname" . }}-ext
+  labels:
+    {{- include "genieacs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  accessModes:
+    - {{ .Values.genieacs.persistence.ext.accessMode }}
+  resources:
+    requests:
+      storage: {{ .Values.genieacs.persistence.ext.size }}
+  {{- if .Values.genieacs.persistence.ext.storageClass }}
+  storageClassName: {{ .Values.genieacs.persistence.ext.storageClass | quote }}
+  {{- end }}
+{{- end }}

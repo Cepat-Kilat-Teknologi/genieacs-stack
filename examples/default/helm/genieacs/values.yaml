@@ -1,0 +1,155 @@
+# Default values for genieacs.
+
+# Global settings
+nameOverride: ""
+fullnameOverride: ""
+
+# GenieACS Application
+genieacs:
+  image:
+    repository: cepatkilatteknologi/genieacs
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  # Service configuration
+  service:
+    type: LoadBalancer
+    ports:
+      cwmp: 7547
+      nbi: 7557
+      fs: 7567
+      ui: 3000
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+    limits:
+      cpu: "2000m"
+      memory: "1Gi"
+
+  # Persistence for logs and extensions
+  persistence:
+    logs:
+      enabled: true
+      size: 5Gi
+      storageClass: ""
+      accessMode: ReadWriteOnce
+    ext:
+      enabled: true
+      size: 1Gi
+      storageClass: ""
+      accessMode: ReadWriteOnce
+
+  # Probes
+  livenessProbe:
+    initialDelaySeconds: 90
+    periodSeconds: 30
+    timeoutSeconds: 10
+    failureThreshold: 5
+
+  readinessProbe:
+    initialDelaySeconds: 60
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+  # Security context
+  securityContext:
+    allowPrivilegeEscalation: false
+
+  # Init container images
+  initContainers:
+    busybox:
+      image: busybox
+      tag: "1.36"
+
+# GenieACS Configuration
+config:
+  # MongoDB connection URL (uses internal service name by default)
+  mongodbConnectionUrl: "mongodb://mongodb:27017/genieacs"
+  # Enable UI authentication
+  uiAuth: "true"
+  # Extensions directory
+  extDir: "/opt/genieacs/ext"
+  # Node environment
+  nodeEnv: "production"
+
+# GenieACS Secret
+secret:
+  # JWT secret for UI authentication
+  # Generate with: openssl rand -hex 32
+  # IMPORTANT: Change this value before deployment!
+  # Generate with: openssl rand -hex 32
+  jwtSecret: "changeme-generate-with-openssl-rand-hex-32"
+
+# MongoDB Configuration
+mongodb:
+  enabled: true
+
+  image:
+    repository: mongo
+    tag: "8.0"
+    pullPolicy: IfNotPresent
+
+  replicaCount: 1
+
+  service:
+    type: ClusterIP
+    port: 27017
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+
+  # Persistence
+  persistence:
+    data:
+      enabled: true
+      size: 10Gi
+      storageClass: ""
+      accessMode: ReadWriteOnce
+    configdb:
+      enabled: true
+      size: 1Gi
+      storageClass: ""
+      accessMode: ReadWriteOnce
+
+  # Probes
+  livenessProbe:
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 6
+
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 5
+    failureThreshold: 3
+
+# Service Account
+serviceAccount:
+  create: false
+  name: ""
+  annotations: {}
+
+# Pod annotations
+podAnnotations: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}

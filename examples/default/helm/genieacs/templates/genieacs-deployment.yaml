@@ -1,0 +1,120 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "genieacs.fullname" . }}
+  labels:
+    {{- include "genieacs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app
+spec:
+  replicas: {{ .Values.genieacs.replicaCount }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "genieacs.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "genieacs.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: app
+    spec:
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      initContainers:
+        - name: fix-permissions
+          image: "{{ .Values.genieacs.initContainers.busybox.image }}:{{ .Values.genieacs.initContainers.busybox.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              chmod -R 777 /var/log/genieacs
+              chmod -R 777 /opt/genieacs/ext
+              echo "Permissions fixed!"
+          volumeMounts:
+            - name: genieacs-logs
+              mountPath: /var/log/genieacs
+            - name: genieacs-ext
+              mountPath: /opt/genieacs/ext
+        - name: wait-for-mongodb
+          image: "{{ .Values.genieacs.initContainers.busybox.image }}:{{ .Values.genieacs.initContainers.busybox.tag }}"
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z {{ include "genieacs.mongodb.name" . }} {{ .Values.mongodb.service.port }}; do
+                echo "Waiting for MongoDB..."
+                sleep 2
+              done
+              echo "MongoDB is ready!"
+      containers:
+        - name: genieacs
+          image: "{{ .Values.genieacs.image.repository }}:{{ .Values.genieacs.image.tag }}"
+          imagePullPolicy: {{ .Values.genieacs.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.genieacs.service.ports.cwmp }}
+              name: cwmp
+            - containerPort: {{ .Values.genieacs.service.ports.nbi }}
+              name: nbi
+            - containerPort: {{ .Values.genieacs.service.ports.fs }}
+              name: fs
+            - containerPort: {{ .Values.genieacs.service.ports.ui }}
+              name: ui
+          envFrom:
+            - configMapRef:
+                name: {{ include "genieacs.fullname" . }}-config
+            - secretRef:
+                name: {{ include "genieacs.fullname" . }}-secret
+          volumeMounts:
+            - name: genieacs-logs
+              mountPath: /var/log/genieacs
+            - name: genieacs-ext
+              mountPath: /opt/genieacs/ext
+          resources:
+            {{- toYaml .Values.genieacs.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.genieacs.service.ports.ui }}
+            initialDelaySeconds: {{ .Values.genieacs.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.genieacs.livenessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.genieacs.livenessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.genieacs.livenessProbe.failureThreshold }}
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.genieacs.service.ports.ui }}
+            initialDelaySeconds: {{ .Values.genieacs.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.genieacs.readinessProbe.periodSeconds }}
+            timeoutSeconds: {{ .Values.genieacs.readinessProbe.timeoutSeconds }}
+            failureThreshold: {{ .Values.genieacs.readinessProbe.failureThreshold }}
+          securityContext:
+            {{- toYaml .Values.genieacs.securityContext | nindent 12 }}
+      volumes:
+        - name: genieacs-logs
+          {{- if .Values.genieacs.persistence.logs.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "genieacs.fullname" . }}-logs
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: genieacs-ext
+          {{- if .Values.genieacs.persistence.ext.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "genieacs.fullname" . }}-ext
+          {{- else }}
+          emptyDir: {}
+          {{- end }}

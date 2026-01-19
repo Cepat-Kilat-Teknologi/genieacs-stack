@@ -1,0 +1,46 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+GenieACS has been deployed with NBI API Key Authentication.
+
+{{- if eq .Values.genieacs.service.type "LoadBalancer" }}
+
+  Get the application URL by running:
+
+  NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+  You can watch the status by running:
+    kubectl get svc -n {{ .Release.Namespace }} {{ include "genieacs.fullname" . }} -w
+
+  Once available, you can access:
+    - Web UI:      http://localhost:{{ .Values.genieacs.service.ports.ui }}
+    - CWMP:        http://localhost:{{ .Values.genieacs.service.ports.cwmp }}
+    - NBI API:     http://localhost:{{ .Values.genieacs.service.ports.nbi }} (requires X-API-Key)
+    - File Server: http://localhost:{{ .Values.genieacs.service.ports.fs }}
+
+{{- else if eq .Values.genieacs.service.type "ClusterIP" }}
+
+  Access the application via port-forward:
+    kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "genieacs.fullname" . }} {{ .Values.genieacs.service.ports.ui }}:{{ .Values.genieacs.service.ports.ui }} {{ .Values.genieacs.service.ports.cwmp }}:{{ .Values.genieacs.service.ports.cwmp }} {{ .Values.genieacs.service.ports.nbi }}:{{ .Values.genieacs.service.ports.nbi }} {{ .Values.genieacs.service.ports.fs }}:{{ .Values.genieacs.service.ports.fs }}
+
+{{- end }}
+
+NBI API Authentication:
+-----------------------
+The NBI API is protected with X-API-Key authentication.
+
+Test without API key (should return 401):
+  curl http://localhost:{{ .Values.genieacs.service.ports.nbi }}/devices
+
+Test with API key (should return 200):
+  curl -H "X-API-Key: {{ .Values.nbiAuth.apiKey }}" http://localhost:{{ .Values.genieacs.service.ports.nbi }}/devices
+
+Health check (no auth required):
+  curl http://localhost:{{ .Values.genieacs.service.ports.nbi }}/health
+
+To check the status of the pods:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+To view logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "genieacs.name" . }} -c genieacs -f
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "genieacs.name" . }} -c nginx-nbi-auth -f

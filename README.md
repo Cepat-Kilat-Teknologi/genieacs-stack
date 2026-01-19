@@ -1,13 +1,8 @@
 # GenieACS Stack
-
-![Docker](https://img.shields.io/badge/Docker-%E2%9C%93-blue?style=flat-square)
-![Kubernetes](https://img.shields.io/badge/Kubernetes-%E2%9C%93-326CE5?style=flat-square)
-![Helm](https://img.shields.io/badge/Helm-%E2%9C%93-0F1689?style=flat-square)
-![MongoDB](https://img.shields.io/badge/MongoDB-8.0-green?style=flat-square)
+[![ci](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/docker-build.yml)
 ![GenieACS](https://img.shields.io/badge/GenieACS-1.2.13-orange?style=flat-square)
 ![Node.js](https://img.shields.io/badge/Node.js-24-brightgreen?style=flat-square)
 ![Multi-Arch](https://img.shields.io/badge/multi--arch-amd64%2Carm64-lightgrey?style=flat-square)
-[![ci](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/docker-build.yml)
 
 Complete deployment stack for GenieACS v1.2.13 with MongoDB 8.0. Supports Docker Compose, Kubernetes (Kustomize), and Helm deployments. Production-ready with security hardening, health checks, and optional NBI API authentication.
 

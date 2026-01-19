@@ -7,6 +7,13 @@ metadata:
     app.kubernetes.io/component: app
 spec:
   type: {{ .Values.genieacs.service.type }}
+  {{- if and (eq .Values.genieacs.service.type "LoadBalancer") .Values.genieacs.service.loadBalancerIP }}
+  loadBalancerIP: {{ .Values.genieacs.service.loadBalancerIP }}
+  {{- end }}
+  {{- if and (eq .Values.genieacs.service.type "LoadBalancer") .Values.genieacs.service.loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+    {{- toYaml .Values.genieacs.service.loadBalancerSourceRanges | nindent 4 }}
+  {{- end }}
   ports:
     - port: {{ .Values.genieacs.service.ports.cwmp }}
       targetPort: cwmp

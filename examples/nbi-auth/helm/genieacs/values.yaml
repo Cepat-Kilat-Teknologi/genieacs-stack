@@ -16,6 +16,12 @@ genieacs:
   # Service configuration
   service:
     type: LoadBalancer
+    # Fixed LoadBalancer IP (optional, cloud provider must support)
+    # loadBalancerIP: "10.100.0.250"
+    # IP whitelist - only these IPs can access (optional)
+    # loadBalancerSourceRanges:
+    #   - "10.0.0.0/8"
+    #   - "192.168.0.0/16"
     ports:
       cwmp: 7547
       nbi: 7557    # External port (routes to nginx proxy)

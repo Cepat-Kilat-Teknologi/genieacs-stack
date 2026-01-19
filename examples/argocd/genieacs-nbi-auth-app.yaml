@@ -1,0 +1,102 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: genieacs-nbi-auth
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # Using Helm chart from repository
+    repoURL: https://cepat-kilat-teknologi.github.io/genieacs-stack
+    chart: genieacs-nbi-auth
+    targetRevision: 0.1.0
+    helm:
+      releaseName: genieacs
+      values: |
+        # ===========================================
+        # IMPORTANT: Change these values before deploy!
+        # ===========================================
+        nbiAuth:
+          enabled: true
+          # Generate with: openssl rand -hex 32
+          apiKey: "changeme-generate-with-openssl-rand-hex-32"
+
+        secret:
+          # Generate with: openssl rand -hex 32
+          jwtSecret: "changeme-generate-with-openssl-rand-hex-32"
+
+        # ===========================================
+        # GenieACS Configuration
+        # ===========================================
+        genieacs:
+          replicaCount: 1
+          image:
+            repository: cepatkilatteknologi/genieacs
+            tag: "1.2.13"
+            pullPolicy: IfNotPresent
+
+          service:
+            type: LoadBalancer
+            # Set your LoadBalancer IP
+            loadBalancerIP: "10.100.0.250"
+
+            # IP Whitelist - Only these IPs can access the services
+            # Add your allowed IPs/CIDRs here
+            loadBalancerSourceRanges:
+              - "10.0.0.0/8"        # Internal network
+              - "192.168.0.0/16"    # Private network
+              # - "203.0.113.50/32" # Specific external IP
+
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+
+        # ===========================================
+        # MongoDB Configuration
+        # ===========================================
+        mongodb:
+          persistence:
+            data:
+              size: 20Gi
+              # storageClassName: "your-storage-class"
+            configdb:
+              size: 2Gi
+
+        # ===========================================
+        # Application Settings
+        # ===========================================
+        config:
+          uiAuth: "true"
+          nodeEnv: "production"
+
+  destination:
+    # Change to your production cluster
+    # Example: https://k8s-api.your-domain.com:6443
+    server: https://kubernetes.default.svc
+    namespace: genieacs
+
+  # ===========================================
+  # Sync Policy - Manual for Production
+  # ===========================================
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    # WARNING: Do NOT enable automated sync for production
+    # automated:
+    #   prune: true
+    #   selfHeal: true
+
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

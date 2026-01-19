@@ -1,0 +1,75 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: genieacs
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+
+  source:
+    # Using Helm chart from repository
+    repoURL: https://cepat-kilat-teknologi.github.io/genieacs-stack
+    chart: genieacs
+    targetRevision: 0.1.0
+    helm:
+      releaseName: genieacs
+      values: |
+        # Override values for production
+        secret:
+          # IMPORTANT: Change this! Generate with: openssl rand -hex 32
+          jwtSecret: "changeme-generate-with-openssl-rand-hex-32"
+
+        genieacs:
+          replicaCount: 1
+          image:
+            repository: cepatkilatteknologi/genieacs
+            tag: "1.2.13"
+            pullPolicy: IfNotPresent
+          service:
+            type: LoadBalancer
+            # Uncomment and set for fixed IP
+            # loadBalancerIP: "10.0.0.100"
+          resources:
+            requests:
+              cpu: "500m"
+              memory: "512Mi"
+            limits:
+              cpu: "2000m"
+              memory: "2Gi"
+
+        mongodb:
+          persistence:
+            data:
+              size: 20Gi
+              # storageClassName: "your-storage-class"
+            configdb:
+              size: 2Gi
+
+        config:
+          uiAuth: "true"
+          nodeEnv: "production"
+
+  destination:
+    # Change to your production cluster
+    server: https://kubernetes.default.svc
+    namespace: genieacs
+
+  # Manual sync for production
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    # Uncomment for auto-sync (NOT recommended for production)
+    # automated:
+    #   prune: true
+    #   selfHeal: true
+
+  # Ignore differences in these fields
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

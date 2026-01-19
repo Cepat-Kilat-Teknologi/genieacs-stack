@@ -1,0 +1,49 @@
+apiVersion: v1
+entries:
+  genieacs:
+  - apiVersion: v2
+    appVersion: 1.2.13
+    created: "2026-01-19T15:39:50.755105227Z"
+    description: A Helm chart for GenieACS - Open Source TR-069 Remote Management
+      Solution
+    digest: afcaad53976acf0b33ec80a243fa4be681701914132ad1ebb5d3ae00ecc7c61f
+    home: https://genieacs.com
+    keywords:
+    - genieacs
+    - tr-069
+    - cwmp
+    - acs
+    - network-management
+    maintainers:
+    - name: Sumitro Aji Prabowo
+    name: genieacs
+    sources:
+    - https://github.com/genieacs/genieacs
+    type: application
+    urls:
+    - https://cepat-kilat-teknologi.github.io/genieacs-stack/genieacs-0.1.0.tgz
+    version: 0.1.0
+  genieacs-nbi-auth:
+  - apiVersion: v2
+    appVersion: 1.2.13
+    created: "2026-01-19T15:39:50.755690861Z"
+    description: A Helm chart for GenieACS with NBI API Key Authentication
+    digest: acd6be1cedc4108fcf4d88366f2546a33523b66eb8c1137b75e9369b6ebe2edd
+    home: https://genieacs.com
+    keywords:
+    - genieacs
+    - tr-069
+    - cwmp
+    - acs
+    - network-management
+    - nbi-auth
+    maintainers:
+    - name: Sumitro Aji Prabowo
+    name: genieacs-nbi-auth
+    sources:
+    - https://github.com/genieacs/genieacs
+    type: application
+    urls:
+    - https://cepat-kilat-teknologi.github.io/genieacs-stack/genieacs-nbi-auth-0.1.0.tgz
+    version: 0.1.0
+generated: "2026-01-19T15:39:50.754365975Z"

@@ -5,11 +5,18 @@ metadata:
   labels:
     {{- include "genieacs.labels" . | nindent 4 }}
     app.kubernetes.io/component: app
+  {{- if or .Values.genieacs.service.annotations .Values.genieacs.service.loadBalancerIP }}
+  annotations:
+    {{- with .Values.genieacs.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+    {{- if .Values.genieacs.service.loadBalancerIP }}
+    # MetalLB annotation for fixed IP
+    metallb.universe.tf/loadBalancerIPs: {{ .Values.genieacs.service.loadBalancerIP }}
+    {{- end }}
+  {{- end }}
 spec:
   type: {{ .Values.genieacs.service.type }}
-  {{- if and (eq .Values.genieacs.service.type "LoadBalancer") .Values.genieacs.service.loadBalancerIP }}
-  loadBalancerIP: {{ .Values.genieacs.service.loadBalancerIP }}
-  {{- end }}
   {{- if and (eq .Values.genieacs.service.type "LoadBalancer") .Values.genieacs.service.loadBalancerSourceRanges }}
   loadBalancerSourceRanges:
     {{- toYaml .Values.genieacs.service.loadBalancerSourceRanges | nindent 4 }}

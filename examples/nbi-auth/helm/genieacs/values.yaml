@@ -16,12 +16,16 @@ genieacs:
   # Service configuration
   service:
     type: LoadBalancer
-    # Fixed LoadBalancer IP (optional, cloud provider must support)
+    # Fixed LoadBalancer IP (for MetalLB or similar)
     # loadBalancerIP: "10.100.0.250"
-    # IP whitelist - only these IPs can access (optional)
+    # IP whitelist - only these IPs can access
     # loadBalancerSourceRanges:
     #   - "10.0.0.0/8"
     #   - "192.168.0.0/16"
+    # Custom annotations (for cloud providers)
+    # annotations:
+    #   service.beta.kubernetes.io/aws-load-balancer-type: "nlb"
+    #   service.beta.kubernetes.io/azure-load-balancer-internal: "true"
     ports:
       cwmp: 7547
       nbi: 7557    # External port (routes to nginx proxy)

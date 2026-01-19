@@ -154,8 +154,9 @@ helm install genieacs ./examples/nbi-auth/helm/genieacs \
 | `genieacs.image.tag` | Image tag | `latest` |
 | `genieacs.replicaCount` | Number of replicas | `1` |
 | `genieacs.service.type` | Service type | `LoadBalancer` |
-| `genieacs.service.loadBalancerIP` | Fixed LoadBalancer IP | `""` |
+| `genieacs.service.loadBalancerIP` | Fixed LoadBalancer IP (MetalLB) | `""` |
 | `genieacs.service.loadBalancerSourceRanges` | IP whitelist for access | `[]` |
+| `genieacs.service.annotations` | Service annotations (cloud providers) | `{}` |
 | `genieacs.service.ports.cwmp` | CWMP port | `7547` |
 | `genieacs.service.ports.nbi` | NBI API port | `7557` |
 | `genieacs.service.ports.fs` | File Server port | `7567` |

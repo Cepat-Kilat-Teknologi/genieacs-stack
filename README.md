@@ -81,6 +81,7 @@ kubectl apply -k .
 |----------|-------------|
 | [INSTALLATION.md](INSTALLATION.md) | Complete installation guide for all platforms |
 | [SECURITY.md](SECURITY.md) | Security best practices and configuration |
+| [examples/argocd/](examples/argocd/) | ArgoCD deployment guide for GitOps |
 
 ## Project Structure
 
@@ -94,10 +95,11 @@ kubectl apply -k .
 │   │   ├── docker/
 │   │   ├── kubernetes/
 │   │   └── helm/
-│   └── nbi-auth/              # With NBI API authentication
-│       ├── docker/
-│       ├── kubernetes/
-│       └── helm/
+│   ├── nbi-auth/              # With NBI API authentication
+│   │   ├── docker/
+│   │   ├── kubernetes/
+│   │   └── helm/
+│   └── argocd/                # ArgoCD application manifests
 ├── config/                    # Configuration files
 ├── scripts/                   # Utility scripts
 └── backups/                   # MongoDB backups

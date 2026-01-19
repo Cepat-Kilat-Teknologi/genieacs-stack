@@ -1,0 +1,72 @@
+name: Release Helm Charts
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'examples/*/helm/**'
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.14.0
+
+      - name: Package Helm Charts
+        run: |
+          mkdir -p .helm-packages
+
+          # Package default chart
+          echo "Packaging genieacs chart..."
+          helm package examples/default/helm/genieacs -d .helm-packages
+
+          # Package nbi-auth chart
+          echo "Packaging genieacs-nbi-auth chart..."
+          helm package examples/nbi-auth/helm/genieacs -d .helm-packages
+
+          # List packages
+          echo "Packaged charts:"
+          ls -la .helm-packages/
+
+      - name: Checkout gh-pages branch
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Update Helm Repository
+        run: |
+          # Copy new packages to gh-pages
+          cp .helm-packages/*.tgz gh-pages/
+
+          cd gh-pages
+
+          # Generate/update index.yaml
+          helm repo index . --url https://cepat-kilat-teknologi.github.io/genieacs-stack
+
+          # Show index content
+          echo "Repository index:"
+          cat index.yaml
+
+          # Commit and push
+          git add .
+          git diff --staged --quiet || git commit -m "Release Helm charts - $(date +'%Y-%m-%d %H:%M:%S')"
+          git push

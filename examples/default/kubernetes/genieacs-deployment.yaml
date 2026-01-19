@@ -50,7 +50,7 @@ spec:
       containers:
         - name: genieacs
           image: cepatkilatteknologi/genieacs:latest
-          imagePullPolicy: Always
+          imagePullPolicy: IfNotPresent  # Use local image if available
           ports:
             - containerPort: 7547
               name: cwmp

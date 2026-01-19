@@ -129,4 +129,5 @@ mongo-init.js
 ext/
 data/
 tmp/
-backups/
+backups/*
+!backups/.gitkeep

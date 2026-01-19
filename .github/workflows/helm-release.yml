@@ -74,4 +74,3 @@ jobs:
           git add .
           git diff --staged --quiet || git commit -m "Release Helm charts - $(date +'%Y-%m-%d %H:%M:%S')"
           git push
-          

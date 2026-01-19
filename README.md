@@ -81,7 +81,7 @@ kubectl apply -k .
 |----------|-------------|
 | [INSTALLATION.md](INSTALLATION.md) | Complete installation guide for all platforms |
 | [SECURITY.md](SECURITY.md) | Security best practices and configuration |
-| [examples/argocd/](examples/argocd/) | ArgoCD deployment guide for GitOps |
+| [examples/argocd/README.md](examples/argocd/README.md) | ArgoCD deployment guide for GitOps |
 
 ## Project Structure
 

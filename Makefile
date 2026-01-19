@@ -1,4 +1,4 @@
-# Makefile for GenieACS Docker Build and Deployment
+# Makefile for GenieACS Stack - Build and Deployment
 .PHONY: help build buildx push up down logs stop restart clean setup scan verify-deps \
         test status ps shell-mongo shell-genieacs backup restore prune create-user fresh
 
@@ -13,7 +13,7 @@ COMPOSE = docker compose -f $(COMPOSE_FILE)
 
 # Default target
 help:
-	@echo "GenieACS Docker Management"
+	@echo "GenieACS Stack Management"
 	@echo ""
 	@echo "Quick Start:"
 	@echo "  make setup       - Create config files and directories"

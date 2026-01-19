@@ -1,27 +1,32 @@
-# GenieACS Docker Deployment
+# GenieACS Stack
 
 ![Docker](https://img.shields.io/badge/Docker-%E2%9C%93-blue?style=flat-square)
+![Kubernetes](https://img.shields.io/badge/Kubernetes-%E2%9C%93-326CE5?style=flat-square)
+![Helm](https://img.shields.io/badge/Helm-%E2%9C%93-0F1689?style=flat-square)
 ![MongoDB](https://img.shields.io/badge/MongoDB-8.0-green?style=flat-square)
 ![GenieACS](https://img.shields.io/badge/GenieACS-1.2.13-orange?style=flat-square)
 ![Node.js](https://img.shields.io/badge/Node.js-24-brightgreen?style=flat-square)
 ![Multi-Arch](https://img.shields.io/badge/multi--arch-amd64%2Carm64-lightgrey?style=flat-square)
-[![ci](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/actions/workflows/docker-build.yml)
+[![ci](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/docker-build.yml)
 
-Docker container for deployment GenieACS v1.2.13 with MongoDB 8.0, optimized for production use with security hardening, health checks, and log management.
+Complete deployment stack for GenieACS v1.2.13 with MongoDB 8.0. Supports Docker Compose, Kubernetes (Kustomize), and Helm deployments. Production-ready with security hardening, health checks, and optional NBI API authentication.
 
 ## Features
 
-- GenieACS v1.2.13 (CWMP, NBI, FS, UI)
-- MongoDB 8.0 with health check
-- Node.js 24 LTS
-- Multi-architecture support (amd64, arm64)
-- Security hardened image
-- Auto-restart and health monitoring
-- Log rotation support
-- Data persistence with Docker volumes
-- Environment variables configuration
-- Backup and restore functionality
-- Comprehensive management via Makefile
+- **GenieACS v1.2.13** - CWMP, NBI, FS, UI services
+- **MongoDB 8.0** - Database with health checks
+- **Multi-platform Deployment**:
+  - Docker Compose (development & production)
+  - Kubernetes with Kustomize
+  - Helm Charts
+- **NBI API Authentication** - Optional X-API-Key protection via Nginx proxy
+- **Multi-architecture** - amd64, arm64 support
+- **Production Ready**:
+  - Security hardened images
+  - Health monitoring & auto-restart
+  - Log rotation
+  - Data persistence
+  - Backup & restore functionality
 
 ## Quick Start
 
@@ -35,8 +40,8 @@ Docker container for deployment GenieACS v1.2.13 with MongoDB 8.0, optimized for
 ### Step 1: Clone Repository
 
 ```bash
-git clone https://github.com/Cepat-Kilat-Teknologi/genieacs-docker.git
-cd genieacs-docker
+git clone https://github.com/Cepat-Kilat-Teknologi/genieacs-stack.git
+cd genieacs-stack
 ```
 
 ### Step 2: Configure Environment
@@ -399,7 +404,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Support
 
 - **Email**: info@ckt.co.id
-- **Issues**: [GitHub Issues](https://github.com/Cepat-Kilat-Teknologi/genieacs-docker/issues)
+- **Issues**: [GitHub Issues](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/issues)
 
 ---
 

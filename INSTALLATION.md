@@ -15,6 +15,7 @@ Complete installation guide for GenieACS Stack. Choose the deployment method tha
 - [Helm Charts](#helm-charts)
   - [Default Deployment](#helm-default)
   - [With NBI Authentication](#helm-nbi-auth)
+- [ArgoCD (GitOps)](#argocd-gitops)
 - [Post-Installation](#post-installation)
 - [Verification](#verification)
 
@@ -43,6 +44,7 @@ Complete installation guide for GenieACS Stack. Choose the deployment method tha
 | Docker Compose | Development, Small deployments | Low | Limited |
 | Kubernetes (Kustomize) | Production, Custom configurations | Medium | High |
 | Helm | Production, Standardized deployments | Low | High |
+| ArgoCD | Production, GitOps workflows | Medium | High |
 
 ---
 
@@ -317,6 +319,47 @@ helm rollback genieacs -n genieacs
 # Uninstall
 helm uninstall genieacs -n genieacs
 ```
+
+---
+
+## ArgoCD (GitOps)
+
+For GitOps deployment using ArgoCD with manual sync (recommended for production).
+
+### Prerequisites
+
+- ArgoCD installed on your cluster
+- kubectl access to the cluster
+
+### Deploy with ArgoCD
+
+```bash
+# Using the provided Application manifest
+kubectl apply -f examples/argocd/genieacs-nbi-auth-app.yaml
+
+# Or create directly via ArgoCD CLI
+argocd app create genieacs \
+  --repo https://cepat-kilat-teknologi.github.io/genieacs-stack \
+  --helm-chart genieacs-nbi-auth \
+  --revision 0.1.0 \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace genieacs \
+  --sync-option CreateNamespace=true
+```
+
+### Manual Sync
+
+```bash
+# Sync via CLI
+argocd app sync genieacs
+
+# Or via ArgoCD UI:
+# 1. Open ArgoCD Dashboard
+# 2. Find "genieacs" application
+# 3. Click "Sync" button
+```
+
+> **Important:** Before deploying, update the secrets in the Application manifest. See [examples/argocd/README.md](examples/argocd/README.md) for detailed configuration.
 
 ---
 

@@ -59,6 +59,10 @@ jobs:
 
           cd gh-pages
 
+          # Configure git for gh-pages directory
+          git config user.name "${{ github.actor }}"
+          git config user.email "${{ github.actor }}@users.noreply.github.com"
+
           # Generate/update index.yaml
           helm repo index . --url https://cepat-kilat-teknologi.github.io/genieacs-stack
 

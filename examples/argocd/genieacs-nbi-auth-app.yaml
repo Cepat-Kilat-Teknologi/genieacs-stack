@@ -12,21 +12,28 @@ spec:
     # Using Helm chart from repository
     repoURL: https://cepat-kilat-teknologi.github.io/genieacs-stack
     chart: genieacs-nbi-auth
-    targetRevision: 0.1.0
+    targetRevision: 0.2.0
     helm:
       releaseName: genieacs
       values: |
         # ===========================================
-        # IMPORTANT: Change these values before deploy!
+        # SECRETS CONFIGURATION
         # ===========================================
+        # NBI API Key (embedded in nginx ConfigMap)
         nbiAuth:
           enabled: true
           # Generate with: openssl rand -hex 32
           apiKey: "changeme-generate-with-openssl-rand-hex-32"
 
+        # JWT Secret for UI authentication
         secret:
-          # Generate with: openssl rand -hex 32
-          jwtSecret: "changeme-generate-with-openssl-rand-hex-32"
+          # Option 1: Provide JWT secret directly (not recommended for production)
+          # jwtSecret: "changeme-generate-with-openssl-rand-hex-32"
+
+          # Option 2: Use existing Kubernetes secret (recommended)
+          # Create secret first: kubectl create secret generic genieacs-secrets \
+          #   --from-literal=GENIEACS_UI_JWT_SECRET=$(openssl rand -hex 32) -n genieacs
+          existingSecret: "genieacs-secrets"
 
         # ===========================================
         # GenieACS Configuration

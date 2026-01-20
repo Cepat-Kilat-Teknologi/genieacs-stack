@@ -128,6 +128,34 @@ curl http://localhost:7557/health
 | JWT Secret | Web UI authentication | `openssl rand -hex 32` |
 | NBI API Key | NBI API authentication (optional) | `openssl rand -hex 32` |
 
+### Using Existing Secrets (Recommended for Production)
+
+The Helm charts support `existingSecret` to reference pre-created Kubernetes secrets instead of storing secrets in values.
+
+**Step 1: Create the Kubernetes secret**
+```bash
+kubectl create namespace genieacs
+
+kubectl create secret generic genieacs-secrets \
+  --namespace genieacs \
+  --from-literal=GENIEACS_UI_JWT_SECRET="$(openssl rand -hex 32)"
+```
+
+**Step 2: Reference in Helm values**
+```yaml
+secret:
+  existingSecret: "genieacs-secrets"
+```
+
+**Step 3: Install with existingSecret**
+```bash
+helm install genieacs genieacs/genieacs \
+  --namespace genieacs \
+  --set secret.existingSecret=genieacs-secrets
+```
+
+> **Important:** When using `existingSecret`, the secret must contain the key `GENIEACS_UI_JWT_SECRET`.
+
 ### Best Practices
 
 1. **Never commit secrets to version control**
@@ -139,26 +167,29 @@ curl http://localhost:7557/health
    ```
 
 2. **Use environment-specific secrets**
-   - Development: Local `.env` files
-   - Production: Kubernetes Secrets, Vault, or cloud secret managers
+   - Development: Local `.env` files or `--set secret.jwtSecret=...`
+   - Production: Use `existingSecret` with Kubernetes Secrets, Sealed Secrets, or external secret managers
 
 3. **Rotate secrets regularly**
    ```bash
    # Generate new secret
    NEW_SECRET=$(openssl rand -hex 32)
 
-   # Update deployment
-   helm upgrade genieacs genieacs/genieacs \
-     --set secret.jwtSecret="$NEW_SECRET" \
-     -n genieacs
+   # Update the Kubernetes secret
+   kubectl create secret generic genieacs-secrets \
+     --namespace genieacs \
+     --from-literal=GENIEACS_UI_JWT_SECRET="$NEW_SECRET" \
+     --dry-run=client -o yaml | kubectl apply -f -
+
+   # Restart pods to pick up new secret
+   kubectl rollout restart deployment/genieacs -n genieacs
    ```
 
 4. **Use Kubernetes Secrets properly**
    ```bash
    # Create secret from literal
    kubectl create secret generic genieacs-secrets \
-     --from-literal=jwt-secret=$(openssl rand -hex 32) \
-     --from-literal=api-key=$(openssl rand -hex 32) \
+     --from-literal=GENIEACS_UI_JWT_SECRET=$(openssl rand -hex 32) \
      -n genieacs
    ```
 

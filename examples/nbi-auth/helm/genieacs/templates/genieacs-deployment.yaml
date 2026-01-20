@@ -92,7 +92,7 @@ spec:
             - configMapRef:
                 name: {{ include "genieacs.fullname" . }}-config
             - secretRef:
-                name: {{ include "genieacs.fullname" . }}-secret
+                name: {{ .Values.secret.existingSecret | default (printf "%s-secret" (include "genieacs.fullname" .)) }}
           volumeMounts:
             - name: genieacs-logs
               mountPath: /var/log/genieacs

@@ -90,9 +90,12 @@ config:
 
 # GenieACS Secret
 secret:
-  # JWT secret for UI authentication
-  # Generate with: openssl rand -hex 32
-  # IMPORTANT: Change this value before deployment!
+  # Use an existing secret instead of creating one
+  # If set, the chart will NOT create a secret and will use this existing secret
+  # The existing secret must contain: GENIEACS_UI_JWT_SECRET
+  existingSecret: ""
+
+  # JWT secret for UI authentication (ignored if existingSecret is set)
   # Generate with: openssl rand -hex 32
   jwtSecret: "changeme-generate-with-openssl-rand-hex-32"
 

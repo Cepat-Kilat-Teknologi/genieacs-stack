@@ -206,8 +206,8 @@ helm search repo genieacs
 Output:
 ```
 NAME                       CHART VERSION  APP VERSION  DESCRIPTION
-genieacs/genieacs          0.1.0          1.2.13       GenieACS - Open Source TR-069 Remote Management
-genieacs/genieacs-nbi-auth 0.1.0          1.2.13       GenieACS with NBI API Key Authentication
+genieacs/genieacs          0.2.0          1.2.13       GenieACS - Open Source TR-069 Remote Management
+genieacs/genieacs-nbi-auth 0.2.0          1.2.13       GenieACS with NBI API Key Authentication
 ```
 
 ### Helm Default
@@ -224,6 +224,18 @@ helm install genieacs genieacs/genieacs \
   --create-namespace \
   --set secret.jwtSecret="$(openssl rand -hex 32)"
 
+# With existing Kubernetes secret (production recommended)
+# First create the secret:
+kubectl create namespace genieacs
+kubectl create secret generic my-genieacs-secret \
+  --namespace genieacs \
+  --from-literal=GENIEACS_UI_JWT_SECRET="$(openssl rand -hex 32)"
+
+# Then install with existingSecret:
+helm install genieacs genieacs/genieacs \
+  --namespace genieacs \
+  --set secret.existingSecret=my-genieacs-secret
+
 # With custom values file
 helm install genieacs genieacs/genieacs \
   --namespace genieacs \
@@ -234,7 +246,11 @@ helm install genieacs genieacs/genieacs \
 **Example values file (my-values.yaml):**
 ```yaml
 secret:
+  # Option 1: Provide JWT secret directly (not recommended for production)
   jwtSecret: "your-secure-jwt-secret-here"
+
+  # Option 2: Use existing Kubernetes secret (recommended for production)
+  # existingSecret: "my-genieacs-secret"
 
 genieacs:
   replicaCount: 1
@@ -254,6 +270,8 @@ mongodb:
       size: 20Gi
 ```
 
+> **Note:** When using `existingSecret`, the secret must contain the key `GENIEACS_UI_JWT_SECRET`.
+
 ### Helm NBI Auth
 
 ```bash
@@ -263,6 +281,19 @@ helm install genieacs genieacs/genieacs-nbi-auth \
   --create-namespace \
   --set nbiAuth.apiKey="$(openssl rand -hex 32)" \
   --set secret.jwtSecret="$(openssl rand -hex 32)"
+
+# With existing Kubernetes secret for JWT (production recommended)
+# First create the secret:
+kubectl create namespace genieacs
+kubectl create secret generic my-genieacs-secret \
+  --namespace genieacs \
+  --from-literal=GENIEACS_UI_JWT_SECRET="$(openssl rand -hex 32)"
+
+# Then install with existingSecret:
+helm install genieacs genieacs/genieacs-nbi-auth \
+  --namespace genieacs \
+  --set secret.existingSecret=my-genieacs-secret \
+  --set nbiAuth.apiKey="$(openssl rand -hex 32)"
 
 # Display configured API key
 helm get values genieacs -n genieacs | grep apiKey
@@ -275,7 +306,11 @@ nbiAuth:
   apiKey: "your-secure-api-key-here"
 
 secret:
+  # Option 1: Provide JWT secret directly
   jwtSecret: "your-secure-jwt-secret-here"
+
+  # Option 2: Use existing Kubernetes secret (recommended for production)
+  # existingSecret: "my-genieacs-secret"
 
 genieacs:
   service:
@@ -297,6 +332,8 @@ helm install genieacs genieacs/genieacs-nbi-auth \
   --create-namespace \
   -f my-values-nbi.yaml
 ```
+
+> **Note:** The `nbiAuth.apiKey` is embedded in nginx ConfigMap. For JWT secret, use `existingSecret` in production.
 
 ### Helm Commands Reference
 
@@ -341,7 +378,7 @@ kubectl apply -f examples/argocd/genieacs-nbi-auth-app.yaml
 argocd app create genieacs \
   --repo https://cepat-kilat-teknologi.github.io/genieacs-stack \
   --helm-chart genieacs-nbi-auth \
-  --revision 0.1.0 \
+  --revision 0.2.0 \
   --dest-server https://kubernetes.default.svc \
   --dest-namespace genieacs \
   --sync-option CreateNamespace=true

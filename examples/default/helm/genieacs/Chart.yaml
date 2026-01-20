@@ -2,7 +2,7 @@ apiVersion: v2
 name: genieacs
 description: A Helm chart for GenieACS - Open Source TR-069 Remote Management Solution
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "1.2.13"
 keywords:
   - genieacs

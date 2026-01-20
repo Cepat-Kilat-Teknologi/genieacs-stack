@@ -85,9 +85,12 @@ nbiAuth:
     tag: "1.27-alpine"
     pullPolicy: IfNotPresent
 
-  # API Key for NBI authentication
-  # Generate with: openssl rand -hex 32
-  # IMPORTANT: Change this value before deployment!
+  # Use an existing secret for API key instead of creating one
+  # If set, the chart will NOT create nbi-auth secret and will use this existing secret
+  # The existing secret must contain: NBI_API_KEY
+  existingSecret: ""
+
+  # API Key for NBI authentication (ignored if existingSecret is set)
   # Generate with: openssl rand -hex 32
   apiKey: "changeme-generate-with-openssl-rand-hex-32"
 
@@ -116,9 +119,12 @@ config:
 
 # GenieACS Secret
 secret:
-  # JWT secret for UI authentication
-  # Generate with: openssl rand -hex 32
-  # IMPORTANT: Change this value before deployment!
+  # Use an existing secret instead of creating one
+  # If set, the chart will NOT create a secret and will use this existing secret
+  # The existing secret must contain: GENIEACS_UI_JWT_SECRET
+  existingSecret: ""
+
+  # JWT secret for UI authentication (ignored if existingSecret is set)
   # Generate with: openssl rand -hex 32
   jwtSecret: "changeme-generate-with-openssl-rand-hex-32"
 

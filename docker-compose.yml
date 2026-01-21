@@ -7,6 +7,9 @@ services:
     environment:
       MONGO_DATA_DIR: /data/db
       MONGO_LOG_DIR: /var/log/mongodb
+      # Authentication - REQUIRED for security
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?MongoDB password is required}
     volumes:
       - mongo_data:/data/db
       - mongo_configdb:/data/configdb
@@ -17,7 +20,7 @@ services:
     # ports:
     #   - "127.0.0.1:27017:27017"
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "-u", "${MONGO_INITDB_ROOT_USERNAME:-admin}", "-p", "${MONGO_INITDB_ROOT_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 10
@@ -43,7 +46,8 @@ services:
       GENIEACS_DEBUG_FILE: /var/log/genieacs/debug.yaml
       # Paths
       GENIEACS_EXT_DIR: /opt/genieacs/ext
-      GENIEACS_MONGODB_CONNECTION_URL: mongodb://mongo:27017/genieacs
+      # MongoDB with authentication
+      GENIEACS_MONGODB_CONNECTION_URL: ${GENIEACS_MONGODB_CONNECTION_URL:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/genieacs?authSource=admin}
       NODE_ENV: production
     ports:
       # CWMP (TR-069) - CPE devices connect here

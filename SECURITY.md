@@ -8,6 +8,7 @@ Security best practices and configurations for GenieACS Stack deployments.
 - [Authentication](#authentication)
   - [Web UI Authentication](#web-ui-authentication)
   - [NBI API Authentication](#nbi-api-authentication)
+  - [MongoDB Authentication](#mongodb-authentication)
 - [Secrets Management](#secrets-management)
 - [Network Security](#network-security)
 - [Container Security](#container-security)
@@ -25,6 +26,7 @@ GenieACS Stack includes several security features:
 |---------|-------------|
 | JWT Authentication | Web UI protected with JWT tokens |
 | NBI API Key Auth | Optional X-API-Key header authentication |
+| MongoDB Authentication | Database access requires username/password |
 | Non-root Processes | Containers run as non-root where possible |
 | Security Contexts | `allowPrivilegeEscalation: false` enabled |
 | No Default Credentials | All secrets must be configured before deployment |
@@ -117,6 +119,48 @@ curl http://localhost:7557/health
 - Kubernetes: `examples/nbi-auth/kubernetes/`
 - Helm: `genieacs/genieacs-nbi-auth`
 
+### MongoDB Authentication
+
+MongoDB is configured with authentication enabled by default in Kubernetes and Helm deployments.
+
+**Configuration:**
+
+```bash
+# Generate secure MongoDB password
+openssl rand -base64 24
+```
+
+**Kubernetes (mongodb-secret.yaml):**
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mongodb-secret
+  namespace: genieacs
+type: Opaque
+stringData:
+  MONGO_INITDB_ROOT_USERNAME: "admin"
+  MONGO_INITDB_ROOT_PASSWORD: "your-secure-password-here"
+```
+
+**Helm (values.yaml):**
+```yaml
+mongodb:
+  auth:
+    enabled: true
+    rootUsername: "admin"
+    rootPassword: "your-secure-password-here"
+    # Or use existing secret (recommended for production)
+    existingSecret: "my-mongodb-secret"
+```
+
+**Connection URL format:**
+```
+mongodb://username:password@mongodb:27017/genieacs?authSource=admin
+```
+
+> **Important:** When changing MongoDB credentials, update both `mongodb-secret.yaml` and the connection URL in `configmap.yaml` (or Helm values).
+
 ---
 
 ## Secrets Management
@@ -127,6 +171,7 @@ curl http://localhost:7557/health
 |--------|---------|------------|
 | JWT Secret | Web UI authentication | `openssl rand -hex 32` |
 | NBI API Key | NBI API authentication (optional) | `openssl rand -hex 32` |
+| MongoDB Password | Database authentication | `openssl rand -base64 24` |
 
 ### Using Existing Secrets (Recommended for Production)
 
@@ -337,10 +382,10 @@ services:
 
 ```bash
 # Using Docker Scout
-docker scout cves cepatkilatteknologi/genieacs:latest
+docker scout cves cepatkilatteknologi/genieacs:1.2.13
 
 # Using Trivy
-trivy image cepatkilatteknologi/genieacs:latest
+trivy image cepatkilatteknologi/genieacs:1.2.13
 ```
 
 ---
@@ -351,6 +396,8 @@ trivy image cepatkilatteknologi/genieacs:latest
 
 - [ ] Generate unique JWT secret using `openssl rand -hex 32`
 - [ ] Generate unique API key for NBI (if using nbi-auth)
+- [ ] Generate unique MongoDB password using `openssl rand -base64 24`
+- [ ] Update MongoDB connection URL with credentials
 - [ ] Review and customize resource limits
 - [ ] Configure persistent storage with backups
 - [ ] Set up monitoring and alerting

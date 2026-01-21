@@ -42,7 +42,7 @@ services:
 
   ### GenieACS Application ###
   genieacs:
-    image: cepatkilatteknologi/genieacs:latest
+    image: cepatkilatteknologi/genieacs:1.2.13
     container_name: genieacs
     restart: always
     depends_on:
@@ -101,7 +101,7 @@ services:
 
   ### NBI API Proxy with X-API-Key Authentication ###
   nbi-proxy:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     container_name: genieacs-nbi-proxy
     restart: always
     depends_on:

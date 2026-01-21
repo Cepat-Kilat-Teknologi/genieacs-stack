@@ -15,6 +15,7 @@ resources:
   - namespace.yaml
   - configmap.yaml
   - secret.yaml
+  - mongodb-secret.yaml
   - nginx-nbi-auth.yaml
   - mongodb-pvc.yaml
   - mongodb-deployment.yaml

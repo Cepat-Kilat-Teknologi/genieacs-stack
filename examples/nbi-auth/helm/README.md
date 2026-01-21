@@ -151,7 +151,7 @@ helm install genieacs ./examples/nbi-auth/helm/genieacs \
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `genieacs.image.repository` | Image repository | `cepatkilatteknologi/genieacs` |
-| `genieacs.image.tag` | Image tag | `latest` |
+| `genieacs.image.tag` | Image tag | `1.2.13` |
 | `genieacs.replicaCount` | Number of replicas | `1` |
 | `genieacs.service.type` | Service type | `LoadBalancer` |
 | `genieacs.service.loadBalancerIP` | Fixed LoadBalancer IP (MetalLB) | `""` |
@@ -172,6 +172,10 @@ helm install genieacs ./examples/nbi-auth/helm/genieacs \
 |-----------|-------------|---------|
 | `mongodb.enabled` | Deploy MongoDB | `true` |
 | `mongodb.image.tag` | MongoDB version | `8.0` |
+| `mongodb.auth.enabled` | Enable MongoDB authentication | `true` |
+| `mongodb.auth.rootUsername` | MongoDB root username | `admin` |
+| `mongodb.auth.rootPassword` | MongoDB root password | (placeholder) |
+| `mongodb.auth.existingSecret` | Use existing secret for credentials | `""` |
 | `mongodb.persistence.data.size` | Data volume size | `10Gi` |
 | `mongodb.persistence.configdb.size` | Configdb volume size | `1Gi` |
 
@@ -288,7 +292,8 @@ helm/
     └── templates/
         ├── _helpers.tpl        # Template helpers
         ├── configmap.yaml      # GenieACS config
-        ├── secret.yaml         # Secrets
+        ├── secret.yaml         # GenieACS secrets
+        ├── mongodb-secret.yaml # MongoDB authentication
         ├── nginx-configmap.yaml # Nginx NBI auth config
         ├── mongodb-pvc.yaml    # MongoDB storage
         ├── mongodb-deployment.yaml
@@ -341,6 +346,7 @@ kubectl logs -l app.kubernetes.io/component=database -n genieacs
 ## Security Features
 
 - NBI API protected with X-API-Key authentication
+- MongoDB requires authentication (enabled by default)
 - Nginx sidecar runs in the same pod as GenieACS
 - Internal NBI port (7557) not exposed to service
 - Health check endpoint `/health` available without authentication
@@ -350,6 +356,7 @@ kubectl logs -l app.kubernetes.io/component=database -n genieacs
 
 1. **Generate secure API key**: `openssl rand -hex 32`
 2. **Generate secure JWT secret**: `openssl rand -hex 32`
-3. **Use NetworkPolicy** to restrict access
-4. **Enable TLS** with Ingress for production
-5. **Regular key rotation** for API key and JWT secret
+3. **Generate secure MongoDB password**: `openssl rand -base64 24`
+4. **Use NetworkPolicy** to restrict access
+5. **Enable TLS** with Ingress for production
+6. **Regular key rotation** for API key, JWT secret, and MongoDB password

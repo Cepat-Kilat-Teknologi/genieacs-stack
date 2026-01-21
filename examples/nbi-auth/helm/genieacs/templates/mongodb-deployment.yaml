@@ -36,6 +36,11 @@ spec:
           ports:
             - containerPort: {{ .Values.mongodb.service.port }}
               name: mongodb
+          {{- if .Values.mongodb.auth.enabled }}
+          envFrom:
+            - secretRef:
+                name: {{ .Values.mongodb.auth.existingSecret | default (printf "%s-secret" (include "genieacs.mongodb.name" .)) }}
+          {{- end }}
           env:
             - name: MONGO_DATA_DIR
               value: /data/db
@@ -68,6 +73,8 @@ spec:
             periodSeconds: {{ .Values.mongodb.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.mongodb.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.mongodb.readinessProbe.failureThreshold }}
+          securityContext:
+            allowPrivilegeEscalation: false
       volumes:
         - name: mongodb-data
           {{- if .Values.mongodb.persistence.data.enabled }}

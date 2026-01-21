@@ -131,11 +131,18 @@ curl http://localhost:7557/health
 # Navigate to directory
 cd examples/default/kubernetes
 
-# Generate JWT secret
+# Generate secrets
 JWT_SECRET=$(openssl rand -hex 32)
+MONGO_PASSWORD=$(openssl rand -base64 24)
 
 # Update secret.yaml
 sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" secret.yaml
+
+# Update mongodb-secret.yaml
+sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" mongodb-secret.yaml
+
+# Update configmap.yaml with MongoDB credentials
+sed -i '' "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
 
 # Deploy
 kubectl apply -k .
@@ -164,9 +171,16 @@ cd examples/nbi-auth/kubernetes
 # Generate secrets
 JWT_SECRET=$(openssl rand -hex 32)
 API_KEY=$(openssl rand -hex 32)
+MONGO_PASSWORD=$(openssl rand -base64 24)
 
 # Update secret.yaml
 sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" secret.yaml
+
+# Update mongodb-secret.yaml
+sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" mongodb-secret.yaml
+
+# Update configmap.yaml with MongoDB credentials
+sed -i '' "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
 
 # Update nginx-nbi-auth.yaml (replace the API key in the if statement)
 sed -i '' "s/changeme-generate-with-openssl-rand-hex-32/$API_KEY/" nginx-nbi-auth.yaml
@@ -213,16 +227,12 @@ genieacs/genieacs-nbi-auth 0.2.0          1.2.13       GenieACS with NBI API Key
 ### Helm Default
 
 ```bash
-# Basic installation
-helm install genieacs genieacs/genieacs \
-  --namespace genieacs \
-  --create-namespace
-
-# With custom JWT secret (recommended)
+# Basic installation with secure secrets (recommended)
 helm install genieacs genieacs/genieacs \
   --namespace genieacs \
   --create-namespace \
-  --set secret.jwtSecret="$(openssl rand -hex 32)"
+  --set secret.jwtSecret="$(openssl rand -hex 32)" \
+  --set mongodb.auth.rootPassword="$(openssl rand -base64 24)"
 
 # With existing Kubernetes secret (production recommended)
 # First create the secret:
@@ -265,6 +275,12 @@ genieacs:
       memory: "2Gi"
 
 mongodb:
+  auth:
+    enabled: true
+    rootUsername: "admin"
+    rootPassword: "your-secure-mongodb-password"
+    # Or use existing secret (recommended for production)
+    # existingSecret: "my-mongodb-secret"
   persistence:
     data:
       size: 20Gi
@@ -280,7 +296,8 @@ helm install genieacs genieacs/genieacs-nbi-auth \
   --namespace genieacs \
   --create-namespace \
   --set nbiAuth.apiKey="$(openssl rand -hex 32)" \
-  --set secret.jwtSecret="$(openssl rand -hex 32)"
+  --set secret.jwtSecret="$(openssl rand -hex 32)" \
+  --set mongodb.auth.rootPassword="$(openssl rand -base64 24)"
 
 # With existing Kubernetes secret for JWT (production recommended)
 # First create the secret:
@@ -321,6 +338,12 @@ genieacs:
       memory: "512Mi"
 
 mongodb:
+  auth:
+    enabled: true
+    rootUsername: "admin"
+    rootPassword: "your-secure-mongodb-password"
+    # Or use existing secret (recommended for production)
+    # existingSecret: "my-mongodb-secret"
   persistence:
     data:
       size: 20Gi
@@ -419,13 +442,14 @@ POD=$(kubectl get pods -n genieacs -l app.kubernetes.io/name=genieacs -o jsonpat
 kubectl exec -it $POD -n genieacs -- /bin/bash
 
 # Create user (inside pod)
+# Note: Use the MongoDB connection URL from your configmap (includes auth credentials)
 cd /opt/genieacs
 node -e "
 const crypto = require('crypto');
 const salt = crypto.randomBytes(64).toString('hex');
 const hash = crypto.pbkdf2Sync('yourpassword', salt, 10000, 128, 'sha512').toString('hex');
 console.log(JSON.stringify({_id:'admin',password:hash,salt:salt,roles:'admin'}));
-" | mongosh mongodb:27017/genieacs --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
+" | mongosh "mongodb://admin:YOUR_MONGO_PASSWORD@mongodb:27017/genieacs?authSource=admin" --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
 ```
 
 ---

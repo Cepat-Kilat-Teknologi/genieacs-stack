@@ -8,7 +8,7 @@ fullnameOverride: ""
 genieacs:
   image:
     repository: cepatkilatteknologi/genieacs
-    tag: latest
+    tag: "1.2.13"
     pullPolicy: IfNotPresent
 
   replicaCount: 1
@@ -75,7 +75,7 @@ genieacs:
   initContainers:
     busybox:
       image: busybox
-      tag: "1.36"
+      tag: "1.37"
 
 # GenieACS Configuration
 config:
@@ -109,6 +109,19 @@ mongodb:
     pullPolicy: IfNotPresent
 
   replicaCount: 1
+
+  # Authentication settings
+  auth:
+    enabled: true
+    # Use an existing secret for MongoDB credentials
+    # If set, the chart will NOT create a mongodb secret
+    # The existing secret must contain: MONGO_INITDB_ROOT_USERNAME, MONGO_INITDB_ROOT_PASSWORD
+    existingSecret: ""
+    # Root username (ignored if existingSecret is set)
+    rootUsername: "admin"
+    # Root password (ignored if existingSecret is set)
+    # Generate with: openssl rand -base64 24
+    rootPassword: "changeme-generate-secure-password"
 
   service:
     type: ClusterIP

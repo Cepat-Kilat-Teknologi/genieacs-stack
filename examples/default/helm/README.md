@@ -124,7 +124,7 @@ helm install genieacs ./examples/default/helm/genieacs \
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `genieacs.image.repository` | Image repository | `cepatkilatteknologi/genieacs` |
-| `genieacs.image.tag` | Image tag | `latest` |
+| `genieacs.image.tag` | Image tag | `1.2.13` |
 | `genieacs.image.pullPolicy` | Image pull policy | `IfNotPresent` |
 | `genieacs.replicaCount` | Number of replicas | `1` |
 | `genieacs.service.type` | Service type | `LoadBalancer` |
@@ -151,6 +151,10 @@ helm install genieacs ./examples/default/helm/genieacs \
 | `mongodb.enabled` | Deploy MongoDB | `true` |
 | `mongodb.image.repository` | MongoDB image | `mongo` |
 | `mongodb.image.tag` | MongoDB version | `8.0` |
+| `mongodb.auth.enabled` | Enable MongoDB authentication | `true` |
+| `mongodb.auth.rootUsername` | MongoDB root username | `admin` |
+| `mongodb.auth.rootPassword` | MongoDB root password | (placeholder) |
+| `mongodb.auth.existingSecret` | Use existing secret for credentials | `""` |
 | `mongodb.service.type` | Service type | `ClusterIP` |
 | `mongodb.service.port` | MongoDB port | `27017` |
 | `mongodb.resources.requests.cpu` | CPU request | `250m` |
@@ -283,7 +287,8 @@ helm/
     └── templates/
         ├── _helpers.tpl        # Template helpers
         ├── configmap.yaml      # Configuration
-        ├── secret.yaml         # Secrets
+        ├── secret.yaml         # GenieACS secrets
+        ├── mongodb-secret.yaml # MongoDB authentication
         ├── mongodb-pvc.yaml    # MongoDB storage
         ├── mongodb-deployment.yaml
         ├── mongodb-service.yaml
@@ -332,5 +337,6 @@ kubectl get storageclass
 
 - NBI API on port 7557 **has no authentication**
 - For NBI API authentication, use: `examples/nbi-auth/helm/`
+- MongoDB authentication is enabled by default
+- Always change `secret.jwtSecret` and `mongodb.auth.rootPassword` in production
 - Or use NetworkPolicy to restrict access
-- Always change `secret.jwtSecret` in production environment

@@ -50,11 +50,19 @@ cd examples/nbi-auth/kubernetes
 
 ```bash
 # Generate JWT secret
-openssl rand -hex 32
+JWT_SECRET=$(openssl rand -hex 32)
+echo "JWT Secret: $JWT_SECRET"
 # Edit secret.yaml and replace GENIEACS_UI_JWT_SECRET
 
+# Generate MongoDB password
+MONGO_PASSWORD=$(openssl rand -base64 24)
+echo "MongoDB Password: $MONGO_PASSWORD"
+# Edit mongodb-secret.yaml and replace MONGO_INITDB_ROOT_PASSWORD
+# Edit configmap.yaml and update MongoDB connection URL with password
+
 # Generate NBI API key
-openssl rand -hex 32
+API_KEY=$(openssl rand -hex 32)
+echo "NBI API Key: $API_KEY"
 # Edit nginx-nbi-auth.yaml and replace API key in:
 # if ($http_x_api_key != "your-api-key-here")
 ```
@@ -169,18 +177,27 @@ Edit `configmap.yaml` for configuration:
 
 | Key | Description | Default |
 |-----|-------------|---------|
-| `GENIEACS_MONGODB_CONNECTION_URL` | MongoDB URL | `mongodb://mongodb:27017/genieacs` |
+| `GENIEACS_MONGODB_CONNECTION_URL` | MongoDB URL with auth | `mongodb://admin:password@mongodb:27017/genieacs?authSource=admin` |
 | `GENIEACS_UI_AUTH` | Enable UI auth | `true` |
 | `GENIEACS_EXT_DIR` | Extensions directory | `/opt/genieacs/ext` |
 | `NODE_ENV` | Node environment | `production` |
 
-### Secret
+> **Important:** The MongoDB connection URL must include the credentials matching `mongodb-secret.yaml`.
 
-Edit `secret.yaml` for secrets:
+### Secrets
+
+**secret.yaml** - GenieACS secrets:
 
 | Key | Description |
 |-----|-------------|
 | `GENIEACS_UI_JWT_SECRET` | JWT secret for UI authentication |
+
+**mongodb-secret.yaml** - MongoDB authentication:
+
+| Key | Description |
+|-----|-------------|
+| `MONGO_INITDB_ROOT_USERNAME` | MongoDB root username |
+| `MONGO_INITDB_ROOT_PASSWORD` | MongoDB root password |
 
 ### NBI Auth
 
@@ -191,8 +208,9 @@ Edit `nginx-nbi-auth.yaml` for API key authentication.
 ```
 kubernetes/
 ├── namespace.yaml           # Namespace definition
-├── secret.yaml              # JWT secret
-├── configmap.yaml           # Configuration
+├── secret.yaml              # GenieACS JWT secret
+├── mongodb-secret.yaml      # MongoDB authentication credentials
+├── configmap.yaml           # Configuration (includes MongoDB connection URL)
 ├── nginx-nbi-auth.yaml      # Nginx sidecar config (API key)
 ├── mongodb-pvc.yaml         # MongoDB storage
 ├── mongodb-deployment.yaml  # MongoDB deployment
@@ -329,6 +347,7 @@ loadBalancerIP: 10.100.0.198  # Set fixed IP
 ## Security Features
 
 - NBI API protected with X-API-Key authentication
+- MongoDB requires authentication (configured in `mongodb-secret.yaml`)
 - Nginx sidecar runs in the same pod as GenieACS
 - Internal NBI port (7557) not exposed externally
 - Health check endpoint `/health` available without authentication

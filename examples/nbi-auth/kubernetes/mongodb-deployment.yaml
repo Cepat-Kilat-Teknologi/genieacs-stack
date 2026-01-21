@@ -27,6 +27,9 @@ spec:
           ports:
             - containerPort: 27017
               name: mongodb
+          envFrom:
+            - secretRef:
+                name: mongodb-secret
           env:
             - name: MONGO_DATA_DIR
               value: /data/db
@@ -64,6 +67,8 @@ spec:
             periodSeconds: 10
             timeoutSeconds: 5
             failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
       volumes:
         - name: mongodb-data
           persistentVolumeClaim:

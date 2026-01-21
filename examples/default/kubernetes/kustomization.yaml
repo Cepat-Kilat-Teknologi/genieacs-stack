@@ -6,6 +6,7 @@ namespace: genieacs
 resources:
   - namespace.yaml
   - secret.yaml
+  - mongodb-secret.yaml
   - configmap.yaml
   - mongodb-pvc.yaml
   - mongodb-deployment.yaml

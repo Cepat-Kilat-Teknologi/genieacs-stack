@@ -26,13 +26,15 @@ spec:
       initContainers:
         # Fix permissions for log and ext directories
         - name: fix-permissions
-          image: busybox:1.36
+          image: busybox:1.37
           command:
             - sh
             - -c
             - |
-              chmod -R 777 /var/log/genieacs
-              chmod -R 777 /opt/genieacs/ext
+              chown -R 1000:1000 /var/log/genieacs
+              chmod -R 755 /var/log/genieacs
+              chown -R 1000:1000 /opt/genieacs/ext
+              chmod -R 755 /opt/genieacs/ext
               echo "Permissions fixed!"
           volumeMounts:
             - name: genieacs-logs
@@ -41,7 +43,7 @@ spec:
               mountPath: /opt/genieacs/ext
         # Wait for MongoDB to be ready
         - name: wait-for-mongodb
-          image: busybox:1.36
+          image: busybox:1.37
           command:
             - sh
             - -c
@@ -70,7 +72,7 @@ spec:
               cpu: "200m"
               memory: "64Mi"
         - name: genieacs
-          image: cepatkilatteknologi/genieacs:latest
+          image: cepatkilatteknologi/genieacs:1.2.13
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 7547

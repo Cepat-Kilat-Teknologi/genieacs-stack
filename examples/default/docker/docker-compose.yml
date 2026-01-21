@@ -44,7 +44,7 @@ services:
 
   ### GenieACS Application ###
   genieacs:
-    image: cepatkilatteknologi/genieacs:latest
+    image: cepatkilatteknologi/genieacs:1.2.13
     container_name: genieacs
     restart: always
     depends_on:

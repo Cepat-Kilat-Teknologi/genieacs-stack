@@ -41,8 +41,10 @@ spec:
             - sh
             - -c
             - |
-              chmod -R 777 /var/log/genieacs
-              chmod -R 777 /opt/genieacs/ext
+              chown -R 1000:1000 /var/log/genieacs
+              chmod -R 755 /var/log/genieacs
+              chown -R 1000:1000 /opt/genieacs/ext
+              chmod -R 755 /opt/genieacs/ext
               echo "Permissions fixed!"
           volumeMounts:
             - name: genieacs-logs

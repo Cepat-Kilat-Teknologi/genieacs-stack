@@ -11,9 +11,10 @@ Complete deployment stack for [GenieACS](https://genieacs.com) v1.2.13 with Mong
 ## Features
 
 - **GenieACS v1.2.13** - CWMP, NBI, FS, UI services
-- **MongoDB 8.0** - Database with health checks
+- **MongoDB 8.0** - Database with authentication and health checks
 - **Multiple Deployment Options** - Docker Compose, Kubernetes (Kustomize), Helm Charts
 - **NBI API Authentication** - Optional X-API-Key protection via Nginx proxy
+- **MongoDB Authentication** - Secure database access with username/password
 - **Multi-architecture** - amd64, arm64 support
 - **Production Ready** - Security hardened, health monitoring, log rotation, data persistence
 
@@ -41,11 +42,12 @@ Access: http://localhost:3000
 helm repo add genieacs https://cepat-kilat-teknologi.github.io/genieacs-stack
 helm repo update
 
-# Install
+# Install with secure secrets
 helm install genieacs genieacs/genieacs \
   --namespace genieacs \
   --create-namespace \
-  --set secret.jwtSecret="$(openssl rand -hex 32)"
+  --set secret.jwtSecret="$(openssl rand -hex 32)" \
+  --set mongodb.auth.rootPassword="$(openssl rand -base64 24)"
 ```
 
 ### Using Kubernetes (Kustomize)
@@ -53,6 +55,8 @@ helm install genieacs genieacs/genieacs \
 ```bash
 cd examples/default/kubernetes
 # Edit secret.yaml with your JWT secret
+# Edit mongodb-secret.yaml with your MongoDB credentials
+# Edit configmap.yaml to match MongoDB credentials
 kubectl apply -k .
 ```
 

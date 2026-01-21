@@ -7,7 +7,11 @@ metadata:
     app.kubernetes.io/component: config
 data:
   {{- if .Values.mongodb.enabled }}
+  {{- if .Values.mongodb.auth.enabled }}
+  GENIEACS_MONGODB_CONNECTION_URL: {{ printf "mongodb://%s:%s@%s:%d/genieacs?authSource=admin" .Values.mongodb.auth.rootUsername .Values.mongodb.auth.rootPassword (include "genieacs.mongodb.name" .) (int .Values.mongodb.service.port) | quote }}
+  {{- else }}
   GENIEACS_MONGODB_CONNECTION_URL: {{ printf "mongodb://%s:%d/genieacs" (include "genieacs.mongodb.name" .) (int .Values.mongodb.service.port) | quote }}
+  {{- end }}
   {{- else }}
   GENIEACS_MONGODB_CONNECTION_URL: {{ .Values.config.mongodbConnectionUrl | quote }}
   {{- end }}

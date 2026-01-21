@@ -20,16 +20,27 @@ Kubernetes deployment for GenieACS using Kustomize (without NBI API authenticati
 cd examples/default/kubernetes
 ```
 
-### 2. Edit Secret (Optional)
+### 2. Configure Secrets (Required)
 
-Edit `secret.yaml` and change JWT secret:
+Edit secrets before deployment:
 
 ```bash
-# Generate new JWT secret
-openssl rand -hex 32
+# Generate JWT secret
+JWT_SECRET=$(openssl rand -hex 32)
+echo "JWT Secret: $JWT_SECRET"
 
-# Edit secret.yaml
+# Generate MongoDB password
+MONGO_PASSWORD=$(openssl rand -base64 24)
+echo "MongoDB Password: $MONGO_PASSWORD"
+
+# Edit secret.yaml - update GENIEACS_UI_JWT_SECRET
 nano secret.yaml
+
+# Edit mongodb-secret.yaml - update MONGO_INITDB_ROOT_PASSWORD
+nano mongodb-secret.yaml
+
+# Edit configmap.yaml - update MongoDB connection URL with password
+nano configmap.yaml
 ```
 
 ### 3. Deploy
@@ -66,13 +77,14 @@ kubectl get all -n genieacs
 kubectl exec -it deployment/genieacs -n genieacs -- /bin/bash
 
 # Create user (inside pod)
+# Replace YOUR_MONGO_PASSWORD with the password from mongodb-secret.yaml
 cd /opt/genieacs
 node -e "
 const crypto = require('crypto');
 const salt = crypto.randomBytes(64).toString('hex');
 const hash = crypto.pbkdf2Sync('yourpassword', salt, 10000, 128, 'sha512').toString('hex');
 console.log(JSON.stringify({_id:'admin',password:hash,salt:salt,roles:'admin'}));
-" | mongosh mongodb:27017/genieacs --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
+" | mongosh "mongodb://admin:YOUR_MONGO_PASSWORD@mongodb:27017/genieacs?authSource=admin" --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
 ```
 
 ## Services & Ports
@@ -121,18 +133,27 @@ Edit `configmap.yaml` for configuration:
 
 | Key | Description | Default |
 |-----|-------------|---------|
-| `GENIEACS_MONGODB_CONNECTION_URL` | MongoDB URL | `mongodb://mongodb:27017/genieacs` |
+| `GENIEACS_MONGODB_CONNECTION_URL` | MongoDB URL with auth | `mongodb://admin:password@mongodb:27017/genieacs?authSource=admin` |
 | `GENIEACS_UI_AUTH` | Enable UI auth | `true` |
 | `GENIEACS_EXT_DIR` | Extensions directory | `/opt/genieacs/ext` |
 | `NODE_ENV` | Node environment | `production` |
 
-### Secret
+> **Important:** The MongoDB connection URL must include the credentials matching `mongodb-secret.yaml`.
 
-Edit `secret.yaml` for secrets:
+### Secrets
+
+**secret.yaml** - GenieACS secrets:
 
 | Key | Description |
 |-----|-------------|
 | `GENIEACS_UI_JWT_SECRET` | JWT secret for UI authentication |
+
+**mongodb-secret.yaml** - MongoDB authentication:
+
+| Key | Description |
+|-----|-------------|
+| `MONGO_INITDB_ROOT_USERNAME` | MongoDB root username |
+| `MONGO_INITDB_ROOT_PASSWORD` | MongoDB root password |
 
 ### Resources
 
@@ -163,8 +184,9 @@ resources:
 ```
 kubernetes/
 ├── namespace.yaml           # Namespace definition
-├── secret.yaml              # JWT secret
-├── configmap.yaml           # Configuration
+├── secret.yaml              # GenieACS JWT secret
+├── mongodb-secret.yaml      # MongoDB authentication credentials
+├── configmap.yaml           # Configuration (includes MongoDB connection URL)
 ├── mongodb-pvc.yaml         # MongoDB storage (data + configdb)
 ├── mongodb-deployment.yaml  # MongoDB deployment
 ├── mongodb-service.yaml     # MongoDB service (ClusterIP)
@@ -342,6 +364,8 @@ kubectl apply -k overlays/production
 
 - NBI API on port 7557 **has no authentication**
 - For NBI API authentication, use: `examples/nbi-auth/kubernetes/`
+- MongoDB requires authentication (configured in `mongodb-secret.yaml`)
+- Always change default passwords before deployment
 - Or use NetworkPolicy to restrict access:
 
 ```yaml

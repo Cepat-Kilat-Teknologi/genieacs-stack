@@ -28,7 +28,7 @@ services:
     depends_on:
       mongo:
         condition: service_healthy
-    image: cepatkilatteknologi/genieacs:latest
+    image: cepatkilatteknologi/genieacs:1.2.13
     restart: unless-stopped
     container_name: genieacs
     environment:

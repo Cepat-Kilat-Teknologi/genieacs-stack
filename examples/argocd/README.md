@@ -25,14 +25,17 @@ Before deploying, update the secrets in the application manifest:
 # Generate secrets
 JWT_SECRET=$(openssl rand -hex 32)
 API_KEY=$(openssl rand -hex 32)  # Only for nbi-auth
+MONGO_PASSWORD=$(openssl rand -base64 24)
 
 echo "JWT Secret: $JWT_SECRET"
 echo "API Key: $API_KEY"
+echo "MongoDB Password: $MONGO_PASSWORD"
 ```
 
 Edit the YAML file and replace the placeholder values:
 - `jwtSecret: "changeme-generate-with-openssl-rand-hex-32"`
 - `apiKey: "changeme-generate-with-openssl-rand-hex-32"` (nbi-auth only)
+- `mongodb.auth.rootPassword: "changeme-generate-secure-password"`
 
 ### 2. Configure Destination Cluster
 
@@ -140,6 +143,9 @@ spec:
             type: ClusterIP
             loadBalancerIP: "10.0.0.100"
         mongodb:
+          auth:
+            enabled: true
+            rootPassword: "your-secure-password"
           persistence:
             data:
               size: 50Gi

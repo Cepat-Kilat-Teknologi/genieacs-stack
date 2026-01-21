@@ -272,6 +272,8 @@ docker exec mongo-genieacs mongorestore /data/db/backup
 - Health check endpoint `/health` available without authentication
 - Nginx runs as non-root process
 - Security options: `no-new-privileges:true`
+- MongoDB runs without authentication (for development only)
+- For production with full security, use Kubernetes or Helm deployments
 
 ## Troubleshooting
 

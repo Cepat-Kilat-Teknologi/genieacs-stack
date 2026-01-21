@@ -251,6 +251,8 @@ Increase memory limit in `docker-compose.yml` or system.
 ## Security Notes
 
 - NBI API on port 7557 **has no authentication**
+- MongoDB runs without authentication (for development only)
 - For NBI API authentication, use: `examples/nbi-auth/docker/`
 - Or bind to localhost only: `GENIEACS_NBI_PORT=127.0.0.1:7557`
 - Always use a strong JWT secret in production
+- For production with MongoDB auth, use Kubernetes or Helm deployments

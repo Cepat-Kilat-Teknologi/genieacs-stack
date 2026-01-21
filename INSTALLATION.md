@@ -35,6 +35,27 @@ Complete installation guide for GenieACS Stack. Choose the deployment method tha
 - Helm v3.10+ (for Helm deployments)
 - Storage provisioner (for PVC)
 
+### Security Requirements
+
+> **Important:** MongoDB authentication is **required** for all deployments. Never run MongoDB without authentication in production.
+
+All deployments require:
+- **JWT Secret**: For GenieACS UI authentication (`GENIEACS_UI_JWT_SECRET`)
+- **MongoDB Credentials**: Username and password for database access
+- **API Key** (optional): For NBI API authentication when using nbi-auth variant
+
+Generate secure secrets:
+```bash
+# JWT Secret (hex format)
+openssl rand -hex 32
+
+# MongoDB Password (base64 format)
+openssl rand -base64 24
+
+# API Key (hex format)
+openssl rand -hex 32
+```
+
 ---
 
 ## Quick Comparison
@@ -61,9 +82,17 @@ cd examples/default/docker
 # Create environment file
 cp .env.example .env
 
-# Generate and set JWT secret
+# Generate secrets
 JWT_SECRET=$(openssl rand -hex 32)
+MONGO_PASSWORD=$(openssl rand -base64 24)
+
+# Update .env file with secrets
 sed -i '' "s/GENIEACS_UI_JWT_SECRET=.*/GENIEACS_UI_JWT_SECRET=$JWT_SECRET/" .env
+sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD=.*/MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD/" .env
+
+# IMPORTANT: Save these values securely!
+echo "JWT_SECRET: $JWT_SECRET"
+echo "MONGO_PASSWORD: $MONGO_PASSWORD"
 
 # Start services
 docker compose up -d
@@ -94,13 +123,17 @@ cp .env.example .env
 # Generate secrets
 JWT_SECRET=$(openssl rand -hex 32)
 API_KEY=$(openssl rand -hex 32)
+MONGO_PASSWORD=$(openssl rand -base64 24)
 
 # Update .env file
 sed -i '' "s/GENIEACS_UI_JWT_SECRET=.*/GENIEACS_UI_JWT_SECRET=$JWT_SECRET/" .env
 sed -i '' "s/GENIEACS_NBI_API_KEY=.*/GENIEACS_NBI_API_KEY=$API_KEY/" .env
+sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD=.*/MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD/" .env
 
-# Display your API key (save this!)
-echo "Your NBI API Key: $API_KEY"
+# IMPORTANT: Save these values securely!
+echo "JWT_SECRET: $JWT_SECRET"
+echo "NBI API Key: $API_KEY"
+echo "MONGO_PASSWORD: $MONGO_PASSWORD"
 
 # Start services
 docker compose up -d
@@ -508,6 +541,34 @@ kubectl logs -l app.kubernetes.io/name=mongodb -n genieacs
 kubectl exec -it deployment/genieacs -n genieacs -- nc -zv mongodb 27017
 ```
 
+**MongoDB authentication failed:**
+```bash
+# Check if MongoDB secret exists
+kubectl get secret mongodb-secret -n genieacs
+
+# Verify secret values
+kubectl get secret mongodb-secret -n genieacs -o jsonpath='{.data.MONGO_INITDB_ROOT_USERNAME}' | base64 -d
+kubectl get secret mongodb-secret -n genieacs -o jsonpath='{.data.MONGO_INITDB_ROOT_PASSWORD}' | base64 -d
+
+# Check MongoDB logs for auth errors
+kubectl logs -l app.kubernetes.io/name=mongodb -n genieacs | grep -i "auth"
+
+# Verify connection URL in configmap matches credentials
+kubectl get configmap genieacs-config -n genieacs -o yaml | grep MONGODB_CONNECTION_URL
+```
+
+**Docker MongoDB authentication failed:**
+```bash
+# Check MongoDB logs
+docker compose logs mongodb
+
+# Verify environment variables
+docker compose exec genieacs env | grep MONGO
+
+# Test MongoDB connection manually
+docker compose exec mongodb mongosh -u admin -p YOUR_PASSWORD --authenticationDatabase admin
+```
+
 **NBI returns 401:**
 ```bash
 # Check API key configuration
@@ -523,14 +584,28 @@ kubectl get pvc -n genieacs
 kubectl get storageclass
 ```
 
+**Secret not found errors:**
+```bash
+# List all secrets in namespace
+kubectl get secrets -n genieacs
+
+# Check if required secrets exist
+kubectl get secret genieacs-secret -n genieacs
+kubectl get secret mongodb-secret -n genieacs
+
+# Create missing secrets (see instructions above)
+```
+
 ---
 
 ## Next Steps
 
 - Read [SECURITY.md](SECURITY.md) for security best practices
+- Store all generated secrets securely (password manager recommended)
 - Configure CPE devices to connect to CWMP endpoint
 - Set up monitoring and alerting
 - Configure backups for MongoDB data
+- Consider using Kubernetes Secrets or Sealed Secrets for production deployments
 
 ---
 

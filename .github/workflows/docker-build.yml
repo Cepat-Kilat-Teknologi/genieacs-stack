@@ -40,9 +40,9 @@ env:
   # Docker Hub
   DOCKERHUB_REGISTRY: docker.io
   DOCKERHUB_IMAGE: cepatkilatteknologi/genieacs
-  # GitHub Container Registry
+  # GitHub Container Registry (OCI registries require lowercase repository names)
   GHCR_REGISTRY: ghcr.io
-  GHCR_IMAGE: ${{ github.repository_owner }}/genieacs
+  GHCR_IMAGE: ghcr.io/cepat-kilat-teknologi/genieacs
 
 jobs:
   # ========================
@@ -125,7 +125,7 @@ jobs:
         with:
           images: |
             ${{ env.DOCKERHUB_REGISTRY }}/${{ env.DOCKERHUB_IMAGE }}
-            ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE }}
+            ${{ env.GHCR_IMAGE }}
           tags: |
             type=raw,value=${{ env.IMAGE_VERSION }}
             type=raw,value=latest,enable={{is_default_branch}}
@@ -161,10 +161,10 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: |
             type=gha
-            type=registry,ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE }}:buildcache
+            type=registry,ref=${{ env.GHCR_IMAGE }}:buildcache
           cache-to: |
             type=gha,mode=max
-            type=registry,ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE }}:buildcache,mode=max
+            type=registry,ref=${{ env.GHCR_IMAGE }}:buildcache,mode=max
 
       # ---------------------------------------------------------------
       # Attestations create a signed, tamper-evident record that links
@@ -186,7 +186,7 @@ jobs:
         uses: actions/attest-build-provenance@v2
         if: ${{ github.event_name != 'pull_request' }}
         with:
-          subject-name: ${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE }}
+          subject-name: ${{ env.GHCR_IMAGE }}
           subject-digest: ${{ steps.build-push.outputs.digest }}
           push-to-registry: true
 
@@ -200,7 +200,7 @@ jobs:
           DIGEST: ${{ steps.build-push.outputs.digest }}
         run: |
           cosign sign --yes "${{ env.DOCKERHUB_REGISTRY }}/${{ env.DOCKERHUB_IMAGE }}@${DIGEST}"
-          cosign sign --yes "${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE }}@${DIGEST}"
+          cosign sign --yes "${{ env.GHCR_IMAGE }}@${DIGEST}"
 
       # Write a human-readable summary to the GitHub Actions job page.
       - name: Summary
@@ -212,7 +212,7 @@ jobs:
           echo "| Registry | Image |" >> $GITHUB_STEP_SUMMARY
           echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Docker Hub | \`${{ env.DOCKERHUB_IMAGE }}:${{ env.IMAGE_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
-          echo "| GHCR | \`${{ env.GHCR_IMAGE }}:${{ env.IMAGE_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
+          echo "| GHCR | \`cepat-kilat-teknologi/genieacs:${{ env.IMAGE_VERSION }}\` |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Tags" >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

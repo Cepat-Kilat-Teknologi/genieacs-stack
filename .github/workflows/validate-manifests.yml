@@ -66,6 +66,7 @@ jobs:
           kubeconform -strict -summary \
             -kubernetes-version 1.29.0 \
             -skip CustomResourceDefinition \
+            -ignore-filename-pattern 'kustomization.yaml' \
             examples/default/kubernetes/*.yaml
 
       - name: Validate nbi-auth Kustomize manifests
@@ -73,6 +74,7 @@ jobs:
           kubeconform -strict -summary \
             -kubernetes-version 1.29.0 \
             -skip CustomResourceDefinition \
+            -ignore-filename-pattern 'kustomization.yaml' \
             examples/nbi-auth/kubernetes/*.yaml
 
       - name: Install Helm

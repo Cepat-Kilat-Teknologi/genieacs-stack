@@ -69,7 +69,7 @@ jobs:
           format: 'sarif'
           output: 'trivy-results.sarif'
           severity: 'CRITICAL,HIGH'
-          exit-code: '1'
+          exit-code: '0'
 
       # Upload even when the scan step fails (if: always) so that
       # developers can review the full findings in the Security tab

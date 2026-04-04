@@ -100,6 +100,7 @@ kubectl apply -k .
 | Docker | `examples/default/docker/` | `examples/nbi-auth/docker/` | Docker Compose |
 | Kubernetes | `examples/default/kubernetes/` | `examples/nbi-auth/kubernetes/` | Kustomize manifests |
 | Helm | `genieacs/genieacs` | `genieacs/genieacs-nbi-auth` | Helm charts |
+| ArgoCD | `examples/argocd/genieacs-app.yaml` | `examples/argocd/genieacs-nbi-auth-app.yaml` | GitOps (requires ArgoCD) |
 
 ## Services & Ports
 

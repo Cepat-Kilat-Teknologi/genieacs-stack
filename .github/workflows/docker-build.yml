@@ -178,7 +178,7 @@ jobs:
 
       # Generate artifact attestation for Docker Hub
       - name: Generate attestation (Docker Hub)
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         if: ${{ github.event_name != 'pull_request' }}
         with:
           subject-name: ${{ env.DOCKERHUB_REGISTRY }}/${{ env.DOCKERHUB_IMAGE }}
@@ -187,7 +187,7 @@ jobs:
 
       # Generate artifact attestation for GHCR
       - name: Generate attestation (GHCR)
-        uses: actions/attest-build-provenance@v2
+        uses: actions/attest-build-provenance@v4
         if: ${{ github.event_name != 'pull_request' }}
         with:
           subject-name: ${{ env.GHCR_IMAGE }}

@@ -35,6 +35,7 @@ jobs:
       # Write access is needed to push to the gh-pages branch and to push
       # OCI artifacts to GHCR via GITHUB_TOKEN.
       contents: write
+      packages: write
 
     steps:
       - name: Checkout main

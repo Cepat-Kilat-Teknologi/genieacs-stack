@@ -11,13 +11,10 @@
 # GenieACS-specific: environment files and secrets
 # ---------------------------------------------------------------------------
 # The .env file holds MongoDB passwords, JWT secrets, and admin credentials.
-# .env.example is also ignored because it ships with placeholder secrets
-# that should never be mistaken for real values in a repository diff.
+# .env.example IS tracked so new contributors can bootstrap quickly.
 .env
 .env.local
 .env.*.local
-.env.example
-.env.example.local
 
 # TLS certificates, private keys, and credential files that may be added
 # locally for HTTPS or NBI API authentication.
@@ -29,6 +26,12 @@ credentials.json
 secrets.json
 .credentials
 .secrets
+
+# ---------------------------------------------------------------------------
+# Internal docs, planning files, and test artifacts
+# ---------------------------------------------------------------------------
+docs/
+.playwright-mcp/
 
 # ---------------------------------------------------------------------------
 # IDE and editor files

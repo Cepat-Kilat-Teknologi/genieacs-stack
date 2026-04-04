@@ -26,7 +26,7 @@ Complete installation guide for GenieACS Stack. Choose the deployment method tha
 ### Docker Compose
 - Docker Engine 20.10+
 - Docker Compose v2+
-- 2GB RAM minimum
+- 4GB RAM minimum (GenieACS ~1.5GB + MongoDB ~256MB)
 - 10GB disk space
 
 ### Kubernetes / Helm
@@ -523,30 +523,54 @@ argocd app sync genieacs
 
 ### Create Admin User
 
-#### Docker
+#### Docker (using Make)
 ```bash
 cd /path/to/genieacs-stack
-./scripts/create-user.sh admin yourpassword admin
+make create-user
 ```
+
+This reads `GENIEACS_ADMIN_USERNAME` and `GENIEACS_ADMIN_PASSWORD` from `.env` and performs the full setup:
+
+1. Hashes the password with PBKDF2-SHA512 and inserts the user into MongoDB
+2. Creates admin permissions (30 entries) so the user can access all pages
+3. On fresh installs, bootstraps default config (presets, provisions, overview layout)
+4. Invalidates the GenieACS internal cache so login works immediately
+
+After running this command, you can log in and see the full dashboard right away.
+
+#### Docker (custom credentials)
+```bash
+./scripts/create-user.sh myuser mypassword admin
+```
+
+Roles: `admin`, `readwrite`, `readonly`.
 
 #### Kubernetes / Helm
 ```bash
 # Get pod name
 POD=$(kubectl get pods -n genieacs -l app.kubernetes.io/name=genieacs -o jsonpath='{.items[0].metadata.name}')
+MONGO_POD=$(kubectl get pods -n genieacs -l app.kubernetes.io/name=mongodb -o jsonpath='{.items[0].metadata.name}')
 
-# Enter pod
-kubectl exec -it $POD -n genieacs -- /bin/bash
-
-# Create user (inside pod)
-# Note: Use the MongoDB connection URL from your configmap (includes auth credentials)
-cd /opt/genieacs
-node -e "
+# Generate hash inside the GenieACS pod
+HASH_JSON=$(kubectl exec $POD -n genieacs -- node -e "
 const crypto = require('crypto');
 const salt = crypto.randomBytes(64).toString('hex');
 const hash = crypto.pbkdf2Sync('yourpassword', salt, 10000, 128, 'sha512').toString('hex');
 console.log(JSON.stringify({_id:'admin',password:hash,salt:salt,roles:'admin'}));
-" | mongosh "mongodb://admin:YOUR_MONGO_PASSWORD@mongodb:27017/genieacs?authSource=admin" --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
+")
+
+# Insert into MongoDB (replace YOUR_MONGO_PASSWORD)
+echo "$HASH_JSON" | kubectl exec -i $MONGO_POD -n genieacs -- \
+  mongosh --quiet "mongodb://admin:YOUR_MONGO_PASSWORD@localhost:27017/genieacs?authSource=admin" \
+  --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
+
+# Invalidate cache so login works immediately
+kubectl exec $MONGO_POD -n genieacs -- \
+  mongosh --quiet "mongodb://admin:YOUR_MONGO_PASSWORD@localhost:27017/genieacs?authSource=admin" \
+  --eval 'db.cache.deleteOne({_id: "ui-local-cache-hash"})'
 ```
+
+> **Note:** After inserting users directly into MongoDB, you must invalidate the `ui-local-cache-hash` entry in the `cache` collection. GenieACS caches user data and won't see new users until the cache refreshes (up to 5 seconds after invalidation).
 
 ---
 
@@ -630,6 +654,18 @@ docker compose exec genieacs env | grep MONGO
 
 # Test MongoDB connection manually
 docker compose exec mongo mongosh -u admin -p YOUR_PASSWORD --authenticationDatabase admin
+```
+
+**Login fails after creating user ("Incorrect username or password"):**
+```bash
+# GenieACS caches user data internally. If you inserted users directly
+# into MongoDB (not via the create-user.sh script), clear the cache:
+docker exec mongo-genieacs mongosh --quiet \
+  "mongodb://admin:YOUR_MONGO_PASSWORD@localhost:27017/genieacs?authSource=admin" \
+  --eval 'db.cache.deleteOne({_id: "ui-local-cache-hash"})'
+
+# The user should be loginable within ~5 seconds after cache invalidation.
+# The create-user.sh script handles this automatically.
 ```
 
 **NBI returns 401:**

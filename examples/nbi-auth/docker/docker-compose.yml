@@ -166,7 +166,7 @@ services:
       # be healthy internally for the nbi-proxy to function. This catches
       # partial degradation where supervisord is running but one subprocess
       # has crashed.
-      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ && curl -sf http://localhost:7557/"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ && curl -sf http://localhost:7557/devices"]
       interval: 30s
       timeout: 10s
       retries: 5

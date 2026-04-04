@@ -160,7 +160,7 @@ services:
       # AND (&&). This catches partial degradation: if supervisord is running
       # but one subprocess has crashed, the check fails and Docker marks the
       # container unhealthy, enabling alerting and automatic restart.
-      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ && curl -sf http://localhost:7557/"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ && curl -sf http://localhost:7557/devices"]
       interval: 30s
       timeout: 10s
       retries: 5

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- GenieACS healthcheck used NBI root `/` which returns 404; changed to `/devices` (all 3 compose files)
+- `create-user.sh` failed with MongoDB auth error; now passes credentials via connection string
+- Login failed after user creation; script now invalidates GenieACS internal cache (`ui-local-cache-hash`)
+- GenieACS container OOM at 1GB limit (4 Node.js processes need ~1.5GB); increased to 2GB
+- `create-user.sh` now bootstraps fresh installs: creates admin permissions (30 entries) and triggers GenieACS UI init (default presets, provisions, overview config)
+- GenieACS `/init` with `users:true` overwrote custom user with default password; fixed by passing `users:false`
+
 ### Security
 - Upgraded GenieACS from 1.2.13 to 1.2.16 (critical RCE fix)
 - Moved MongoDB credentials from ConfigMap to Secret in Helm charts

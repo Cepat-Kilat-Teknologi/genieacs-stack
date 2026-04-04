@@ -422,7 +422,7 @@ make scan
 - [ ] Generate unique API key for NBI (if using nbi-auth)
 - [ ] Generate unique MongoDB password using `openssl rand -base64 24`
 - [ ] Update MongoDB connection URL with credentials
-- [ ] Review and customize resource limits
+- [ ] Review and customize resource limits (GenieACS needs ~1.5GB RAM minimum)
 - [ ] Configure persistent storage with backups
 - [ ] Set up monitoring and alerting
 

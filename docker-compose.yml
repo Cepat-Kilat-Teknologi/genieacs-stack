@@ -166,7 +166,7 @@ services:
       # if supervisord is running but one subprocess has crashed, the check
       # fails and Docker marks the container unhealthy, enabling alerting and
       # automatic restart via the "restart: unless-stopped" policy.
-      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ && curl -sf http://localhost:7557/"]
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ && curl -sf http://localhost:7557/devices"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -189,10 +189,10 @@ services:
         # loop in a custom extension) from consuming all host CPU and memory.
         limits:
           cpus: '2'
-          memory: 1G
+          memory: 2G
         reservations:
           cpus: '0.25'
-          memory: 256M
+          memory: 512M
     logging:
       driver: "json-file"
       options:

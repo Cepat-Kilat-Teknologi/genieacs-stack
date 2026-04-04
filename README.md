@@ -17,7 +17,8 @@ Complete deployment stack for [GenieACS](https://genieacs.com) v1.2.16 with Mong
 - **MongoDB Authentication** - Secure database access with username/password
 - **Multi-architecture** - amd64, arm64 support
 - **Note:** ARMv7 (32-bit ARM) is not supported — Node.js 24 dropped official ARMv7 binaries
-- **Production Ready** - Security hardened, health monitoring, log rotation, data persistence
+- **Production Ready** - NetworkPolicy isolation, health monitoring, log rotation, data persistence
+- **CI/CD** - Multi-arch build, Trivy scanning, cosign signing, Helm OCI push, Dependabot
 
 ## Architecture
 

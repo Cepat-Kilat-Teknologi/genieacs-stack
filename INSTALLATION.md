@@ -32,8 +32,9 @@ Complete installation guide for GenieACS Stack. Choose the deployment method tha
 ### Kubernetes / Helm
 - Kubernetes cluster v1.25+
 - kubectl configured
-- Helm v3.10+ (for Helm deployments)
+- Helm v3.16+ (for Helm deployments)
 - Storage provisioner (for PVC)
+- 4GB RAM minimum per node (GenieACS pod needs ~1.5GB, MongoDB ~256MB)
 
 ### Security Requirements
 

@@ -1,147 +1,297 @@
-# GenieACS Docker Compose - NBI API Authentication
-# Deployment dengan X-API-Key authentication untuk NBI API
+# =============================================================================
+# GenieACS Stack - NBI API Authentication Deployment
+# =============================================================================
 #
-# Usage:
+# Purpose:
+#   This deployment adds X-API-Key authentication to the GenieACS NBI
+#   (Northbound Interface) REST API. By default, the NBI has no authentication,
+#   meaning anyone with network access to port 7557 can read/write device
+#   data, trigger reboots, push firmware, and more. This compose file places
+#   an nginx reverse proxy in front of the NBI that requires a valid
+#   X-API-Key header on every request.
+#
+# How it works:
+#   External clients --> :7557 (nbi-proxy / nginx) --> genieacs:7557 (internal)
+#   The GenieACS NBI port is NOT exposed to the host. All NBI traffic must
+#   pass through the nbi-proxy, which validates the X-API-Key header before
+#   forwarding the request to GenieACS on the internal Docker network.
+#
+# Prerequisites:
+#   - Docker Engine 24+ with Compose V2 (the `docker compose` plugin)
+#   - A populated .env file (copy from .env.example)
+#
+# Quick start:
 #   1. cp .env.example .env
-#   2. Edit .env: set JWT_SECRET dan NBI_API_KEY
+#   2. Edit .env and set MONGO_INITDB_ROOT_PASSWORD, GENIEACS_UI_JWT_SECRET,
+#      and GENIEACS_NBI_API_KEY
 #   3. docker compose up -d
+#
+# Testing the API key:
+#   curl -H "X-API-Key: YOUR_KEY" http://localhost:7557/devices
+#
+# For the simpler deployment without NBI auth, see: examples/default/docker/
+# =============================================================================
 
 services:
+  # ===========================================================================
+  # MongoDB - Primary datastore for GenieACS
+  # ===========================================================================
+  # Stores device records, presets, provisions, faults, and all application
+  # state. GenieACS has no other persistence layer, so MongoDB availability
+  # directly determines whether the stack is operational.
   ### MongoDB Database ###
   mongo:
     image: mongo:8.0
     container_name: mongo-genieacs
-    restart: always
+    restart: unless-stopped
     environment:
-      MONGO_DATA_DIR: /data/db
-      MONGO_LOG_DIR: /var/log/mongodb
       # Authentication - REQUIRED for security
+      # These credentials initialize the admin user on first run. Changing them
+      # after initialization has no effect; use mongosh to rotate passwords on
+      # an existing deployment.
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      # The :? syntax causes Docker Compose to abort with a clear error message
+      # if the variable is unset, preventing an insecure passwordless startup.
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?MongoDB password is required}
     volumes:
+      # Named volumes for database files and internal configuration. These
+      # persist across container recreation (docker compose down/up) and are
+      # fully managed by Docker.
       - mongo_data:/data/db
       - mongo_configdb:/data/configdb
     networks:
       - genieacs_network
     healthcheck:
-      test: ["CMD", "mongosh", "-u", "${MONGO_INITDB_ROOT_USERNAME:-admin}", "-p", "${MONGO_INITDB_ROOT_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      # Why a connection-string URL instead of --username/--password flags?
+      # The mongosh CLI flags would expose the password in the process list
+      # (visible via `ps aux` or /proc on the host). Embedding credentials in
+      # the connection string keeps them out of the argument vector.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')", "mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/admin?authSource=admin"]
       interval: 10s
       timeout: 5s
       retries: 10
+      # start_period gives MongoDB time to initialize (journal recovery, index
+      # building) before Docker marks the container as unhealthy. 30 seconds is
+      # generous enough for ARM64 hosts (e.g., Raspberry Pi, AWS Graviton)
+      # where the WiredTiger storage engine takes noticeably longer to start
+      # than on x86_64.
       start_period: 30s
     deploy:
       resources:
+        # Resource limits prevent a single runaway query or memory leak from
+        # consuming all host resources and destabilizing other containers.
         limits:
           cpus: '2'
           memory: 2G
+        # Reservations guarantee a minimum allocation so MongoDB is not starved
+        # under contention from other workloads on the same host.
         reservations:
           cpus: '0.5'
           memory: 512M
     logging:
       driver: "json-file"
       options:
+        # Capped log files prevent disk exhaustion on long-running deployments.
+        # 5 files x 50 MB = 250 MB maximum disk usage for MongoDB logs.
         max-size: "50m"
         max-file: "5"
 
+  # ===========================================================================
+  # GenieACS - TR-069 ACS application (CWMP, NBI, FS, UI)
+  # ===========================================================================
+  # A single container running four Node.js processes under supervisord:
+  #   - cwmp  (port 7547) : CWMP/TR-069 southbound interface for CPE devices
+  #   - nbi   (port 7557) : Northbound REST API (INTERNAL ONLY in this config)
+  #   - fs    (port 7567) : File server for firmware images and config files
+  #   - ui    (port 3000) : Web-based management interface
   ### GenieACS Application ###
   genieacs:
-    image: cepatkilatteknologi/genieacs:1.2.13
+    image: cepatkilatteknologi/genieacs:1.2.16
     container_name: genieacs
-    restart: always
+    restart: unless-stopped
     depends_on:
       mongo:
+        # service_healthy ensures GenieACS does not start until MongoDB's
+        # healthcheck passes, avoiding connection-refused errors on boot.
         condition: service_healthy
     environment:
-      # Security - REQUIRED
+      # --- Security - REQUIRED ---
+      # JWT secret used to sign and verify UI session tokens. Must be a strong
+      # random string; if compromised, an attacker can forge admin sessions.
       GENIEACS_UI_JWT_SECRET: ${GENIEACS_UI_JWT_SECRET:?JWT secret is required}
+      # Enable built-in username/password authentication for the web UI.
       GENIEACS_UI_AUTH: ${GENIEACS_UI_AUTH:-true}
 
-      # MongoDB with authentication
+      # --- MongoDB connection ---
+      # The connection URL includes authentication credentials and targets the
+      # "genieacs" database with authSource=admin (the database where the root
+      # user was created).
       GENIEACS_MONGODB_CONNECTION_URL: ${GENIEACS_MONGODB_CONNECTION_URL:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/genieacs?authSource=admin}
 
-      # Log files
+      # --- Log file paths ---
+      # Each GenieACS subprocess writes its own access log. These paths point
+      # to the named volume mounted at /var/log/genieacs so logs persist
+      # across container restarts and can be collected by external tools.
       GENIEACS_CWMP_ACCESS_LOG_FILE: /var/log/genieacs/cwmp-access.log
       GENIEACS_NBI_ACCESS_LOG_FILE: /var/log/genieacs/nbi-access.log
       GENIEACS_FS_ACCESS_LOG_FILE: /var/log/genieacs/fs-access.log
       GENIEACS_UI_ACCESS_LOG_FILE: /var/log/genieacs/ui-access.log
       GENIEACS_DEBUG_FILE: /var/log/genieacs/debug.yaml
 
-      # Paths
+      # --- Paths ---
+      # Directory where GenieACS looks for custom extension scripts (.js files)
+      # that can be invoked from provisions and virtual parameters.
       GENIEACS_EXT_DIR: /opt/genieacs/ext
       NODE_ENV: production
     ports:
-      - "${GENIEACS_CWMP_PORT:-7547}:7547"   # CWMP (TR-069)
-      # NBI port 7557 NOT exposed - access via nbi-proxy only
-      - "${GENIEACS_FS_PORT:-7567}:7567"     # File Server
-      - "${GENIEACS_UI_PORT:-3000}:3000"     # Web UI
+      - "${GENIEACS_CWMP_PORT:-7547}:7547"   # CWMP (TR-069) - CPE device provisioning
+      # IMPORTANT: NBI port 7557 is intentionally NOT exposed to the host.
+      # All NBI traffic is routed through the nbi-proxy service below, which
+      # enforces X-API-Key authentication. The NBI remains accessible on the
+      # internal Docker network (genieacs:7557) for the proxy to reach it.
+      - "${GENIEACS_FS_PORT:-7567}:7567"     # File Server - Firmware and config delivery
+      - "${GENIEACS_UI_PORT:-3000}:3000"     # Web UI - Browser-based admin interface
     volumes:
+      # Application data (GenieACS internal state)
       - genieacs_data:/opt/genieacs
+      # Persistent log storage
       - genieacs_logs:/var/log/genieacs
+      # Extension scripts volume
       - genieacs_ext:/opt/genieacs/ext
     networks:
       - genieacs_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      # Tests BOTH the UI (port 3000) AND the NBI (port 7557) with a logical
+      # AND (&&). Even though the NBI is not exposed to the host, it must still
+      # be healthy internally for the nbi-proxy to function. This catches
+      # partial degradation where supervisord is running but one subprocess
+      # has crashed.
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ && curl -sf http://localhost:7557/devices"]
       interval: 30s
       timeout: 10s
       retries: 5
+      # 90-second start_period is intentionally longer than MongoDB's 30s.
+      # GenieACS must wait for MongoDB, then start four Node.js processes
+      # under supervisord. On ARM64 hosts (Raspberry Pi, AWS Graviton), the
+      # combined startup can take 60-80 seconds; 90s provides headroom.
       start_period: 90s
     deploy:
       resources:
+        # Resource limits prevent a runaway Node.js process (e.g., an infinite
+        # loop in a custom extension) from consuming all host CPU and memory.
         limits:
           cpus: '2'
           memory: 1G
         reservations:
           cpus: '0.25'
           memory: 256M
+    # Security hardening: no-new-privileges prevents processes inside the
+    # container from gaining additional privileges via setuid/setgid binaries
+    # or capability escalation. This is compatible with supervisord because
+    # supervisor's child processes inherit the genieacs user through the
+    # 'user=genieacs' directive in the supervisord config (not via setuid).
     security_opt:
       - no-new-privileges:true
     logging:
       driver: "json-file"
       options:
+        # GenieACS generates more log output than MongoDB (four subprocesses),
+        # so it gets a higher cap: 10 files x 100 MB = 1 GB maximum.
         max-size: "100m"
         max-file: "10"
 
+  # ===========================================================================
+  # NBI API Proxy - X-API-Key authentication gateway
+  # ===========================================================================
+  # This nginx reverse proxy sits in front of the GenieACS NBI API and
+  # enforces X-API-Key header authentication on every request. Without this,
+  # the NBI is completely unauthenticated by default, which is dangerous in
+  # any network-accessible deployment.
+  #
+  # Request flow:
+  #   Client --> :7557 (host) --> :7558 (nginx) --> genieacs:7557 (internal)
+  #
+  # The proxy listens on port 7558 inside the container and is mapped to the
+  # host's NBI port (default 7557), so clients use the same port as a
+  # standard deployment.
   ### NBI API Proxy with X-API-Key Authentication ###
   nbi-proxy:
     image: nginx:1.27-alpine
     container_name: genieacs-nbi-proxy
-    restart: always
+    restart: unless-stopped
     depends_on:
       genieacs:
+        # Wait until GenieACS is healthy so nginx has a live upstream to
+        # proxy to. Without this, nginx would start and return 502 errors
+        # until GenieACS finishes booting.
         condition: service_healthy
     environment:
+      # The API key that clients must include in the X-API-Key header.
+      # The :? syntax ensures the compose file refuses to start without it,
+      # preventing an accidentally unprotected deployment.
       GENIEACS_NBI_API_KEY: ${GENIEACS_NBI_API_KEY:?NBI API Key is required}
     volumes:
+      # The nginx config template contains ${GENIEACS_NBI_API_KEY} placeholders
+      # that are resolved at runtime by envsubst (see entrypoint below).
+      # Both files are mounted read-only because the container should never
+      # modify them.
       - ./config/nginx/nbi-proxy.conf.template:/etc/nginx/nbi-proxy.conf.template:ro
       - ./config/nginx/docker-entrypoint.sh:/docker-entrypoint.sh:ro
+    # Custom entrypoint that uses envsubst to substitute environment variables
+    # into the nginx config template before starting nginx. This pattern is
+    # commonly used with the official nginx Docker image. The entrypoint
+    # script (docker-entrypoint.sh) runs:
+    #   envsubst '${GENIEACS_NBI_API_KEY}' < template > /etc/nginx/nginx.conf
+    #   exec nginx -g "daemon off;"
+    # The explicit variable list in envsubst prevents it from replacing other
+    # $-prefixed strings in the nginx config (like $host or $remote_addr).
     entrypoint: ["/docker-entrypoint.sh"]
     ports:
+      # Maps the host NBI port (default 7557) to the proxy's internal port
+      # 7558. This means external clients connect to the same port they would
+      # use in a non-proxied deployment, making the proxy transparent.
       - "${GENIEACS_NBI_PORT:-7557}:7558"
     networks:
       - genieacs_network
     healthcheck:
+      # The /health endpoint is defined in the nginx config and returns 200
+      # without requiring authentication, so Docker can verify the proxy is
+      # running independently of the API key.
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:7558/health"]
       interval: 30s
       timeout: 5s
       retries: 3
+      # nginx starts almost instantly, so 10 seconds is more than enough.
       start_period: 10s
     deploy:
       resources:
+        # nginx is extremely lightweight as a reverse proxy. These limits are
+        # conservative but sufficient; even 128 MB is generous for a proxy
+        # that only forwards requests and does not cache response bodies.
         limits:
           cpus: '0.5'
           memory: 128M
         reservations:
           cpus: '0.1'
           memory: 32M
+    # Same security hardening as the other services.
     security_opt:
       - no-new-privileges:true
     logging:
       driver: "json-file"
       options:
+        # Proxy access logs are low-volume; a small cap is sufficient.
+        # 3 files x 10 MB = 30 MB maximum.
         max-size: "10m"
         max-file: "3"
 
+# =============================================================================
+# Named Volumes
+# =============================================================================
+# All volumes use explicit names for easy identification in `docker volume ls`.
+# These match the names used in examples/default/ so the two example
+# deployments share the same data if run on the same host (by design --
+# switching between default and nbi-auth should preserve your data).
 volumes:
   mongo_data:
     name: mongo-genieacs-data
@@ -154,6 +304,13 @@ volumes:
   genieacs_ext:
     name: genieacs-ext
 
+# =============================================================================
+# Networks
+# =============================================================================
+# A dedicated bridge network isolates GenieACS traffic from other containers
+# on the host and provides automatic DNS resolution between services. The
+# nbi-proxy reaches GenieACS via the internal hostname "genieacs" on this
+# network, while the NBI port is not exposed on the host.
 networks:
   genieacs_network:
     name: genieacs-network

@@ -1,15 +1,42 @@
+# =============================================================================
+# CI Workflow: Multi-architecture Docker Build & Push
+# =============================================================================
+# Purpose: Build linux/amd64 and linux/arm64 Docker images for GenieACS,
+#          push them to both Docker Hub and GitHub Container Registry (GHCR),
+#          then sign the images and generate provenance attestations.
+#
+# Why dual registries?  Docker Hub gives broad public reach; GHCR integrates
+#                        tightly with GitHub permissions and keeps everything
+#                        in one platform for contributors.
+#
+# Security: Images are signed with Sigstore cosign (keyless / OIDC) and
+#           include SBOM + provenance attestations so consumers can verify
+#           the build was not tampered with (supply-chain transparency).
+# =============================================================================
+
 name: ci
 
 on:
   push:
     branches: [ "main" ]
+    # Tags MUST always trigger a full build so every release gets published.
+    # (Path filters are intentionally omitted here for that reason.)
     tags: [ "v*.*.*" ]
   pull_request:
     branches: [ "main" ]
+    # Path filters on PRs avoid burning CI minutes when only docs or
+    # non-Docker files change.  They are NOT applied to push/tag events
+    # because every merge to main and every version tag must produce an image.
+    paths:
+      - 'Dockerfile'
+      - 'config/**'
+      - 'scripts/**'
+      - '.github/workflows/docker-build.yml'
   workflow_dispatch:
 
 env:
-  IMAGE_VERSION: '1.2.13'
+  # Pinned application version used as a Docker tag (updated by release.yml).
+  IMAGE_VERSION: '1.2.16'
   # Docker Hub
   DOCKERHUB_REGISTRY: docker.io
   DOCKERHUB_IMAGE: cepatkilatteknologi/genieacs
@@ -23,26 +50,52 @@ jobs:
   # ========================
   build-and-push:
     name: Build & Push Docker Image
+    # TODO: For faster arm64 builds, use matrix strategy:
+    # strategy:
+    #   matrix:
+    #     include:
+    #       - runner: ubuntu-latest
+    #         platform: linux/amd64
+    #       - runner: ubuntu-24.04-arm
+    #         platform: linux/arm64
     runs-on: ubuntu-latest
     environment: ci
     permissions:
       contents: read
-      packages: write
-      id-token: write
-      attestations: write
+      packages: write       # Required to push images to GHCR
+      id-token: write       # Required for cosign keyless signing via OIDC
+      attestations: write   # Required for build-provenance attestation uploads
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # QEMU lets Docker Buildx emulate arm64 on an amd64 runner so we can
+      # produce multi-architecture images from a single job.
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
+      # Buildx is the extended Docker builder that supports multi-platform
+      # builds, advanced caching, and exporting provenance/SBOM metadata.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      # Cosign provides keyless (OIDC-based) image signing through Sigstore.
+      # Skipped on PRs because fork PRs lack the id-token permission needed
+      # for keyless signing, and we do not want to sign unmerged code anyway.
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+
+      # ---------------------------------------------------------------
+      # Registry logins are conditional on non-PR events because:
+      #   1. Fork-based PRs do not have access to repository secrets.
+      #   2. We only push images after code lands on main or is tagged.
+      # ---------------------------------------------------------------
+
       # Login to Docker Hub
       - name: Log in to Docker Hub
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.DOCKERHUB_REGISTRY }}
@@ -51,13 +104,21 @@ jobs:
 
       # Login to GitHub Container Registry
       - name: Log in to GitHub Container Registry
+        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.GHCR_REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Extract metadata for tags
+      # ---------------------------------------------------------------
+      # Tag strategy (metadata-action):
+      #   - raw IMAGE_VERSION : deterministic tag matching the app version
+      #   - latest            : convenience tag, only on the default branch
+      #   - semver {{version}}: full semver from git tag  (e.g. 1.2.16)
+      #   - semver {{major}}.{{minor}}: allows "1.2" floating tag
+      #   - sha               : immutable commit-SHA tag for traceability
+      # ---------------------------------------------------------------
       - name: Extract Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -72,7 +133,19 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=sha,prefix=
 
-      # Build and push to both registries
+      # ---------------------------------------------------------------
+      # Build & push the multi-arch image.
+      #
+      # Cache strategy uses BOTH GitHub Actions cache (GHA) and a registry
+      # cache stored as a special tag on GHCR:
+      #   - GHA cache  : fast for same-branch rebuilds within the same repo.
+      #   - Registry cache: survives across PRs and forks, giving cross-PR
+      #     cache hits and avoiding cold builds after cache eviction.
+      #
+      # provenance & sbom are enabled to embed supply-chain metadata
+      # directly into the image manifest, so consumers can audit the build
+      # without trusting external attestation stores.
+      # ---------------------------------------------------------------
       - name: Build & Push
         id: build-push
         uses: docker/build-push-action@v6
@@ -80,13 +153,24 @@ jobs:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
+          # On PRs we only build (no push) to validate the Dockerfile.
           push: ${{ github.event_name != 'pull_request' }}
-          provenance: true
-          sbom: true
+          provenance: true    # Embeds SLSA provenance for supply-chain security
+          sbom: true          # Embeds a Software Bill of Materials (SBOM)
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-from: |
+            type=gha
+            type=registry,ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE }}:buildcache
+          cache-to: |
+            type=gha,mode=max
+            type=registry,ref=${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE }}:buildcache,mode=max
+
+      # ---------------------------------------------------------------
+      # Attestations create a signed, tamper-evident record that links
+      # the image digest to this specific GitHub Actions build.  One
+      # attestation per registry so each can be independently verified.
+      # ---------------------------------------------------------------
 
       # Generate artifact attestation for Docker Hub
       - name: Generate attestation (Docker Hub)
@@ -106,6 +190,19 @@ jobs:
           subject-digest: ${{ steps.build-push.outputs.digest }}
           push-to-registry: true
 
+      # Cosign keyless signing uses GitHub's OIDC token to prove the image
+      # was built by this workflow in this repository, without managing any
+      # long-lived signing keys.  Verifiers check the Sigstore transparency
+      # log instead.
+      - name: Sign images with cosign
+        if: github.event_name != 'pull_request'
+        env:
+          DIGEST: ${{ steps.build-push.outputs.digest }}
+        run: |
+          cosign sign --yes "${{ env.DOCKERHUB_REGISTRY }}/${{ env.DOCKERHUB_IMAGE }}@${DIGEST}"
+          cosign sign --yes "${{ env.GHCR_REGISTRY }}/${{ env.GHCR_IMAGE }}@${DIGEST}"
+
+      # Write a human-readable summary to the GitHub Actions job page.
       - name: Summary
         if: ${{ github.event_name != 'pull_request' }}
         run: |

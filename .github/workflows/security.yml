@@ -1,0 +1,98 @@
+# =============================================================================
+# Security Scan Workflow
+# =============================================================================
+# Purpose: Continuously scan the GenieACS Docker image and repository
+#          configuration for known vulnerabilities (CVEs) and misconfigurations.
+#
+# Why Trivy?
+#   - Comprehensive CVE database (NVD, GitHub Advisories, distro-specific).
+#   - Native SARIF output integrates with GitHub's Security tab so findings
+#     appear alongside code scanning alerts.
+#   - Supports both container image scanning AND IaC/config file scanning
+#     in a single tool.
+#
+# Why a scheduled run (cron)?
+#   New CVEs are disclosed constantly.  The weekly Monday scan catches
+#   vulnerabilities that were published AFTER the last image build, even
+#   if no code has changed.  Push/PR triggers alone would miss these.
+# =============================================================================
+
+name: Security Scan
+
+on:
+  push:
+    branches: [main]
+    # Only re-scan on push when files that affect the image change.
+    paths:
+      - 'Dockerfile'
+      - 'config/**'
+      - 'scripts/**'
+  pull_request:
+    branches: [main]
+  # Weekly scan every Monday at 06:00 UTC to catch newly disclosed CVEs
+  # against the existing image, even when no code has changed.
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+jobs:
+  trivy-scan:
+    name: Trivy Vulnerability Scan
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required to upload SARIF results to the GitHub Security tab.
+      security-events: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Build a local image specifically for scanning.  This ensures we
+      # test the exact layers and packages that would ship in production.
+      - name: Build image for scanning
+        run: docker build -t genieacs-scan:latest .
+
+      # ---------------------------------------------------------------
+      # Image scan: inspects OS packages and application dependencies
+      # inside the built container image for known CVEs.
+      #
+      # - SARIF format is used so results integrate with GitHub Code
+      #   Scanning alerts (visible under the Security tab).
+      # - exit-code 1 fails the workflow on CRITICAL or HIGH findings
+      #   to enforce a security gate before merging.
+      # ---------------------------------------------------------------
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'genieacs-scan:latest'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          exit-code: '1'
+
+      # Upload even when the scan step fails (if: always) so that
+      # developers can review the full findings in the Security tab
+      # regardless of whether the workflow passed or not.
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      # ---------------------------------------------------------------
+      # Config scan: a SEPARATE pass that examines Dockerfiles, YAML,
+      # and other IaC files in the repository for misconfigurations
+      # (e.g., running as root, exposed secrets, insecure defaults).
+      #
+      # This is different from the image scan above:
+      #   - Image scan  -> checks installed packages for CVEs.
+      #   - Config scan -> checks source files for bad practices.
+      # ---------------------------------------------------------------
+      - name: Run Trivy config scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: '.'
+          format: 'table'
+          severity: 'CRITICAL,HIGH'

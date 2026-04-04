@@ -25,10 +25,15 @@ GenieACS Stack includes several security features:
 | Feature | Description |
 |---------|-------------|
 | JWT Authentication | Web UI protected with JWT tokens |
-| NBI API Key Auth | Optional X-API-Key header authentication |
+| NBI API Key Auth | Optional X-API-Key header authentication via Nginx |
 | MongoDB Authentication | Database access requires username/password |
-| Non-root Processes | Containers run as non-root where possible |
-| Security Contexts | `allowPrivilegeEscalation: false` enabled |
+| Non-root Containers | Pods run as uid 1000 with `runAsNonRoot: true` |
+| Capability Dropping | All Linux capabilities dropped (`drop: [ALL]`) |
+| Privilege Escalation Blocked | `allowPrivilegeEscalation: false` on all containers |
+| NetworkPolicy | MongoDB access restricted to GenieACS pods only |
+| Secrets in K8s Secrets | Credentials stored in Secrets, not ConfigMaps |
+| CI Vulnerability Scanning | Trivy scans on push and weekly schedule |
+| Image Signing | Cosign keyless signing via Sigstore |
 | No Default Credentials | All secrets must be configured before deployment |
 | Internal MongoDB | Database not exposed externally by default |
 
@@ -353,14 +358,28 @@ Place a reverse proxy in front of GenieACS with TLS termination.
 
 ### Security Contexts
 
-All deployments include security hardening:
+All Kubernetes/Helm deployments include security hardening:
 
+**Pod-level:**
+```yaml
+podSecurityContext:
+  fsGroup: 1000
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+```
+
+**Container-level:**
 ```yaml
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: false  # Required for GenieACS
-  runAsNonRoot: false  # Some processes require root
+  readOnlyRootFilesystem: false  # GenieACS writes to /opt/genieacs
+  capabilities:
+    drop:
+      - ALL
 ```
+
+All Linux capabilities are dropped and privilege escalation is blocked. The init container also runs as non-root (uid 1000).
 
 ### Docker Security Options
 
@@ -375,17 +394,22 @@ services:
 ### Image Security
 
 - Base image: `debian:bookworm-slim` (minimal attack surface)
-- Regular security updates
-- No unnecessary packages installed
+- No unnecessary packages (`wget`, `iputils-ping`, build tools removed)
+- Trivy scanning in CI (weekly + on push)
+- Cosign image signing (keyless Sigstore)
+- Dependabot monitors base image and GitHub Actions updates
 
 **Scan images for vulnerabilities:**
 
 ```bash
 # Using Docker Scout
-docker scout cves cepatkilatteknologi/genieacs:1.2.13
+docker scout cves cepatkilatteknologi/genieacs:1.2.16
 
 # Using Trivy
-trivy image cepatkilatteknologi/genieacs:1.2.13
+trivy image cepatkilatteknologi/genieacs:1.2.16
+
+# Using Make
+make scan
 ```
 
 ---
@@ -398,7 +422,7 @@ trivy image cepatkilatteknologi/genieacs:1.2.13
 - [ ] Generate unique API key for NBI (if using nbi-auth)
 - [ ] Generate unique MongoDB password using `openssl rand -base64 24`
 - [ ] Update MongoDB connection URL with credentials
-- [ ] Review and customize resource limits
+- [ ] Review and customize resource limits (GenieACS needs ~1.5GB RAM minimum)
 - [ ] Configure persistent storage with backups
 - [ ] Set up monitoring and alerting
 

@@ -1,90 +1,230 @@
+# =============================================================================
+# GenieACS Stack - Root Development Compose
+# =============================================================================
+#
+# Purpose:
+#   This is the root Docker Compose file for LOCAL DEVELOPMENT of the GenieACS
+#   stack. It provides a minimal two-service setup (MongoDB + GenieACS) with
+#   bind-mounted extension directory for rapid iteration on custom extensions.
+#
+# Prerequisites:
+#   - Docker Engine 24+ with Compose V2 (the `docker compose` plugin)
+#   - A populated .env file (copy from .env.example)
+#
+# Quick start:
+#   1. cp .env.example .env
+#   2. Edit .env and set MONGO_INITDB_ROOT_PASSWORD and GENIEACS_UI_JWT_SECRET
+#   3. docker compose up -d
+#
+# For production deployments, see: examples/default/docker/
+# For NBI API key authentication, see: examples/nbi-auth/docker/
+#
+# Architecture:
+#   [CPE Devices] --> :7547 (CWMP/TR-069)
+#   [Admin Users] --> :3000 (Web UI)
+#   [Integrations] --> :7557 (NBI REST API)
+#   [Firmware DL]  --> :7567 (File Server)
+#   genieacs --> mongo:27017 (internal network)
+# =============================================================================
+
+# Requires Docker Compose v2 (docker compose)
 services:
+  # ===========================================================================
+  # MongoDB - Primary datastore for GenieACS
+  # ===========================================================================
+  # Stores device records, presets, provisions, faults, and all application
+  # state. GenieACS has no other persistence layer, so MongoDB availability
+  # directly determines whether the stack is operational.
   ### Main GenieACS DB: MongoDB ###
   mongo:
     image: mongo:8.0
     restart: unless-stopped
     container_name: mongo-genieacs
     environment:
-      MONGO_DATA_DIR: /data/db
-      MONGO_LOG_DIR: /var/log/mongodb
       # Authentication - REQUIRED for security
+      # These credentials initialize the admin user on first run. Changing them
+      # after initialization has no effect; use mongosh to rotate passwords on
+      # an existing deployment.
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_INITDB_ROOT_USERNAME:-admin}
+      # The :? syntax causes Docker Compose to abort with a clear error message
+      # if the variable is unset, preventing an insecure passwordless startup.
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:?MongoDB password is required}
     volumes:
+      # Database files and internal configuration are stored in named volumes
+      # so they survive container recreation (docker compose down/up).
       - mongo_data:/data/db
       - mongo_configdb:/data/configdb
     networks:
       - genieacs_network
-    # Security: Only expose to internal network, not host
-    # Uncomment below if you need external MongoDB access
-    # ports:
-    #   - "127.0.0.1:27017:27017"
     healthcheck:
-      test: ["CMD", "mongosh", "-u", "${MONGO_INITDB_ROOT_USERNAME:-admin}", "-p", "${MONGO_INITDB_ROOT_PASSWORD}", "--authenticationDatabase", "admin", "--eval", "db.adminCommand('ping')"]
+      # Why a connection-string URL instead of --username/--password flags?
+      # The mongosh CLI flags would expose the password in the process list
+      # (visible via `ps aux` or /proc on the host). Embedding credentials in
+      # the connection string keeps them out of the argument vector.
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping')", "mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD}@localhost:27017/admin?authSource=admin"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 20s
+      # start_period gives MongoDB time to initialize (journal recovery, index
+      # building) before Docker marks the container as unhealthy. 30 seconds is
+      # generous enough for ARM64 hosts (e.g., Apple Silicon, Raspberry Pi,
+      # AWS Graviton) where the WiredTiger storage engine takes noticeably
+      # longer to start than on x86_64.
+      start_period: 30s
+    deploy:
+      resources:
+        # Resource limits prevent a single runaway query or memory leak from
+        # consuming all host resources and destabilizing other containers.
+        limits:
+          cpus: '2'
+          memory: 2G
+        # Reservations guarantee a minimum allocation so MongoDB is not starved
+        # under contention from other workloads on the same host.
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        # Capped log files prevent disk exhaustion on long-running deployments.
+        # 5 files x 50 MB = 250 MB maximum disk usage for MongoDB logs.
+        max-size: "50m"
+        max-file: "5"
 
+  # ===========================================================================
+  # GenieACS - TR-069 ACS application (CWMP, NBI, FS, UI)
+  # ===========================================================================
+  # A single container running four Node.js processes under supervisord:
+  #   - cwmp  (port 7547) : CWMP/TR-069 southbound interface for CPE devices
+  #   - nbi   (port 7557) : Northbound REST API for external integrations
+  #   - fs    (port 7567) : File server for firmware images and config files
+  #   - ui    (port 3000) : Web-based management interface
   ### GenieACS Application ###
   genieacs:
     depends_on:
       mongo:
+        # service_healthy ensures GenieACS does not start until MongoDB's
+        # healthcheck passes, avoiding connection-refused errors on boot.
         condition: service_healthy
-    image: cepatkilatteknologi/genieacs:1.2.13
+    image: cepatkilatteknologi/genieacs:1.2.16
     restart: unless-stopped
     container_name: genieacs
     environment:
-      # Security settings
+      # --- Security settings ---
+      # JWT secret used to sign and verify UI session tokens. Must be a strong
+      # random string; if compromised, an attacker can forge admin sessions.
       GENIEACS_UI_JWT_SECRET: ${GENIEACS_UI_JWT_SECRET:?JWT secret is required}
+      # Enable built-in username/password authentication for the web UI.
       GENIEACS_UI_AUTH: ${GENIEACS_UI_AUTH:-true}
-      # Log files
+
+      # --- Log file paths ---
+      # Each GenieACS subprocess writes its own access log. These paths point
+      # to the named volume mounted at /var/log/genieacs so logs persist
+      # across container restarts and can be collected by external tools.
       GENIEACS_CWMP_ACCESS_LOG_FILE: /var/log/genieacs/cwmp-access.log
       GENIEACS_NBI_ACCESS_LOG_FILE: /var/log/genieacs/nbi-access.log
       GENIEACS_FS_ACCESS_LOG_FILE: /var/log/genieacs/fs-access.log
       GENIEACS_UI_ACCESS_LOG_FILE: /var/log/genieacs/ui-access.log
       GENIEACS_DEBUG_FILE: /var/log/genieacs/debug.yaml
-      # Paths
+
+      # --- Paths ---
+      # Directory where GenieACS looks for custom extension scripts (.js files)
+      # that can be invoked from provisions and virtual parameters.
       GENIEACS_EXT_DIR: /opt/genieacs/ext
-      # MongoDB with authentication
+
+      # --- MongoDB connection ---
+      # The connection URL includes authentication credentials and targets the
+      # "genieacs" database with authSource=admin (the database where the root
+      # user was created).
       GENIEACS_MONGODB_CONNECTION_URL: ${GENIEACS_MONGODB_CONNECTION_URL:-mongodb://${MONGO_INITDB_ROOT_USERNAME:-admin}:${MONGO_INITDB_ROOT_PASSWORD}@mongo:27017/genieacs?authSource=admin}
       NODE_ENV: production
     ports:
-      # CWMP (TR-069) - CPE devices connect here
+      # CWMP (TR-069) - CPE devices connect here for provisioning and management
       - "${GENIEACS_CWMP_PORT:-7547}:7547"
-      # NBI API
+      # NBI API - Northbound REST interface for automation and integrations
       - "${GENIEACS_NBI_PORT:-7557}:7557"
-      # File Server
+      # File Server - Serves firmware images and configuration files to CPE devices
       - "${GENIEACS_FS_PORT:-7567}:7567"
-      # Web UI
+      # Web UI - Browser-based admin interface for managing devices
       - "${GENIEACS_UI_PORT:-3000}:3000"
     volumes:
+      # Application data (GenieACS internal state)
       - genieacs_data:/opt/genieacs
+      # Persistent log storage
       - genieacs_logs:/var/log/genieacs
+      # DEVELOPMENT ONLY: The ext/ directory is bind-mounted read-only so you
+      # can edit extension scripts on the host and see changes immediately
+      # (after a GenieACS restart). The :ro flag prevents the container from
+      # modifying your local source files.
+      # For production, use a named volume instead (see examples/default/).
       - ./ext:/opt/genieacs/ext:ro
     networks:
       - genieacs_network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/"]
+      # The healthcheck tests BOTH the UI (port 3000) AND the NBI (port 7557)
+      # endpoints using a logical AND (&&). This catches partial degradation:
+      # if supervisord is running but one subprocess has crashed, the check
+      # fails and Docker marks the container unhealthy, enabling alerting and
+      # automatic restart via the "restart: unless-stopped" policy.
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/ && curl -sf http://localhost:7557/devices"]
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 60s
-    # Security hardening
+      # 90-second start_period is intentionally longer than MongoDB's 30s.
+      # GenieACS must wait for MongoDB, then start four Node.js processes
+      # under supervisord. On ARM64 hosts (Apple Silicon, Graviton), the
+      # combined startup can take 60-80 seconds; 90s provides headroom.
+      start_period: 90s
+    # Security hardening: no-new-privileges prevents processes inside the
+    # container from gaining additional privileges via setuid/setgid binaries
+    # or capability escalation. This is compatible with supervisord because
+    # supervisor's child processes inherit the genieacs user through the
+    # 'user=genieacs' directive in the supervisord config (not via setuid).
+    # If you experience permission issues on certain kernels, remove this option.
     security_opt:
       - no-new-privileges:true
-    read_only: false
+    deploy:
+      resources:
+        # Resource limits prevent a runaway Node.js process (e.g., an infinite
+        # loop in a custom extension) from consuming all host CPU and memory.
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.25'
+          memory: 512M
+    logging:
+      driver: "json-file"
+      options:
+        # GenieACS generates more log output than MongoDB (four subprocesses),
+        # so it gets a higher cap: 10 files x 100 MB = 1 GB maximum.
+        max-size: "100m"
+        max-file: "10"
 
+# =============================================================================
+# Named Volumes
+# =============================================================================
+# Volume names use a "genieacs-stack-" or "genieacs-" prefix to avoid name
+# collisions with volumes created by the example deployments in
+# examples/default/ and examples/nbi-auth/, which use different prefixes.
+# This allows the root dev compose and example composes to coexist on the
+# same Docker host without data conflicts.
 volumes:
   mongo_data:
     name: genieacs-mongo-data
   mongo_configdb:
     name: genieacs-mongo-configdb
   genieacs_data:
-    name: genieacs-app-data
+    name: genieacs-stack-app-data
   genieacs_logs:
-    name: genieacs-logs
+    name: genieacs-stack-logs
 
+# =============================================================================
+# Networks
+# =============================================================================
+# A dedicated bridge network isolates GenieACS traffic from other containers
+# on the host and provides automatic DNS resolution between services (e.g.,
+# "mongo" resolves to the MongoDB container's IP).
 networks:
   genieacs_network:
     name: genieacs-network

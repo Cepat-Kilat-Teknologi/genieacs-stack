@@ -26,7 +26,7 @@ Complete installation guide for GenieACS Stack. Choose the deployment method tha
 ### Docker Compose
 - Docker Engine 20.10+
 - Docker Compose v2+
-- 2GB RAM minimum
+- 4GB RAM minimum (GenieACS ~1.5GB + MongoDB ~256MB)
 - 10GB disk space
 
 ### Kubernetes / Helm
@@ -55,6 +55,25 @@ openssl rand -base64 24
 # API Key (hex format)
 openssl rand -hex 32
 ```
+
+---
+
+## ARM64 Deployment Notes
+
+GenieACS Stack supports ARM64 (aarch64) platforms including:
+- Apple Silicon (M1/M2/M3/M4) via Docker Desktop
+- AWS Graviton instances
+- Raspberry Pi 4/5 (64-bit OS required)
+
+### Important Considerations
+
+1. **MongoDB 8.0 on x86**: Requires AVX CPU instructions. Older AMD64 CPUs (pre-2011) may fail with `Illegal instruction`. This does not affect ARM64.
+
+2. **ARMv7 (32-bit) is NOT supported**: Node.js 24 dropped official ARMv7 binaries. Use a 64-bit OS on Raspberry Pi.
+
+3. **Apple Silicon Docker Desktop**: Ensure "Use Rosetta for x86/amd64 emulation" is disabled for native ARM performance. The GenieACS image is natively built for arm64.
+
+4. **Build times**: Cross-platform builds via QEMU are slower (~2-5x). For fastest builds on ARM64, build natively on an ARM host or use `make buildx-load`.
 
 ---
 
@@ -87,8 +106,12 @@ JWT_SECRET=$(openssl rand -hex 32)
 MONGO_PASSWORD=$(openssl rand -base64 24)
 
 # Update .env file with secrets
+# macOS:
 sed -i '' "s/GENIEACS_UI_JWT_SECRET=.*/GENIEACS_UI_JWT_SECRET=$JWT_SECRET/" .env
 sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD=.*/MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD/" .env
+# Linux:
+# sed -i "s/GENIEACS_UI_JWT_SECRET=.*/GENIEACS_UI_JWT_SECRET=$JWT_SECRET/" .env
+# sed -i "s/MONGO_INITDB_ROOT_PASSWORD=.*/MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD/" .env
 
 # IMPORTANT: Save these values securely!
 echo "JWT_SECRET: $JWT_SECRET"
@@ -126,9 +149,14 @@ API_KEY=$(openssl rand -hex 32)
 MONGO_PASSWORD=$(openssl rand -base64 24)
 
 # Update .env file
+# macOS:
 sed -i '' "s/GENIEACS_UI_JWT_SECRET=.*/GENIEACS_UI_JWT_SECRET=$JWT_SECRET/" .env
 sed -i '' "s/GENIEACS_NBI_API_KEY=.*/GENIEACS_NBI_API_KEY=$API_KEY/" .env
 sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD=.*/MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD/" .env
+# Linux:
+# sed -i "s/GENIEACS_UI_JWT_SECRET=.*/GENIEACS_UI_JWT_SECRET=$JWT_SECRET/" .env
+# sed -i "s/GENIEACS_NBI_API_KEY=.*/GENIEACS_NBI_API_KEY=$API_KEY/" .env
+# sed -i "s/MONGO_INITDB_ROOT_PASSWORD=.*/MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD/" .env
 
 # IMPORTANT: Save these values securely!
 echo "JWT_SECRET: $JWT_SECRET"
@@ -158,24 +186,47 @@ curl http://localhost:7557/health
 
 ## Kubernetes (Kustomize)
 
+The recommended Kustomize layout uses a shared **base** with variant-specific **overlays**:
+
+```
+examples/kubernetes/
+├── base/              # Shared resources (namespace, MongoDB, secrets)
+│   ├── kustomization.yaml
+│   ├── namespace.yaml
+│   ├── mongodb-*.yaml
+│   └── secret.yaml
+└── overlays/
+    ├── default/       # Standard deployment
+    └── nbi-auth/      # With NBI API key authentication
+```
+
 ### K8s Default
 
 ```bash
-# Navigate to directory
-cd examples/default/kubernetes
+# Navigate to the overlay directory
+cd examples/kubernetes/overlays/default
 
 # Generate secrets
 JWT_SECRET=$(openssl rand -hex 32)
 MONGO_PASSWORD=$(openssl rand -base64 24)
 
-# Update secret.yaml
-sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" secret.yaml
+# Update base secrets (shared across overlays)
+# macOS:
+sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" ../../base/secret.yaml
+sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" ../../base/mongodb-secret.yaml
+# Linux:
+# sed -i "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" ../../base/secret.yaml
+# sed -i "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" ../../base/mongodb-secret.yaml
 
-# Update mongodb-secret.yaml
-sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" mongodb-secret.yaml
-
-# Update configmap.yaml with MongoDB credentials
+# Update overlay configmap with MongoDB credentials
+# macOS:
 sed -i '' "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
+# Linux:
+# sed -i "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
+
+# IMPORTANT: Save these values securely!
+echo "JWT_SECRET: $JWT_SECRET"
+echo "MONGO_PASSWORD: $MONGO_PASSWORD"
 
 # Deploy
 kubectl apply -k .
@@ -198,28 +249,38 @@ kubectl port-forward svc/genieacs -n genieacs \
 ### K8s NBI Auth
 
 ```bash
-# Navigate to directory
-cd examples/nbi-auth/kubernetes
+# Navigate to the overlay directory
+cd examples/kubernetes/overlays/nbi-auth
 
 # Generate secrets
 JWT_SECRET=$(openssl rand -hex 32)
 API_KEY=$(openssl rand -hex 32)
 MONGO_PASSWORD=$(openssl rand -base64 24)
 
-# Update secret.yaml
-sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" secret.yaml
+# Update base secrets (shared across overlays)
+# macOS:
+sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" ../../base/secret.yaml
+sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" ../../base/mongodb-secret.yaml
+# Linux:
+# sed -i "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" ../../base/secret.yaml
+# sed -i "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" ../../base/mongodb-secret.yaml
 
-# Update mongodb-secret.yaml
-sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" mongodb-secret.yaml
-
-# Update configmap.yaml with MongoDB credentials
+# Update overlay configmap with MongoDB credentials
+# macOS:
 sed -i '' "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
+# Linux:
+# sed -i "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
 
-# Update nginx-nbi-auth.yaml (replace the API key in the if statement)
+# Update nginx NBI auth config with API key
+# macOS:
 sed -i '' "s/changeme-generate-with-openssl-rand-hex-32/$API_KEY/" nginx-nbi-auth.yaml
+# Linux:
+# sed -i "s/changeme-generate-with-openssl-rand-hex-32/$API_KEY/" nginx-nbi-auth.yaml
 
-# Display your API key (save this!)
-echo "Your NBI API Key: $API_KEY"
+# IMPORTANT: Save these values securely!
+echo "JWT_SECRET: $JWT_SECRET"
+echo "NBI API Key: $API_KEY"
+echo "MONGO_PASSWORD: $MONGO_PASSWORD"
 
 # Deploy
 kubectl apply -k .
@@ -232,6 +293,8 @@ kubectl wait --for=condition=ready pod \
 # Verify
 kubectl get all -n genieacs
 ```
+
+> **Note:** The old `examples/default/kubernetes/` and `examples/nbi-auth/kubernetes/` directories are deprecated. Use the base+overlay structure above for new deployments.
 
 ---
 
@@ -253,8 +316,8 @@ helm search repo genieacs
 Output:
 ```
 NAME                       CHART VERSION  APP VERSION  DESCRIPTION
-genieacs/genieacs          0.2.0          1.2.13       GenieACS - Open Source TR-069 Remote Management
-genieacs/genieacs-nbi-auth 0.2.0          1.2.13       GenieACS with NBI API Key Authentication
+genieacs/genieacs          0.3.0          1.2.16       GenieACS - Open Source TR-069 Remote Management
+genieacs/genieacs-nbi-auth 0.3.0          1.2.16       GenieACS with NBI API Key Authentication
 ```
 
 ### Helm Default
@@ -404,7 +467,7 @@ helm status genieacs -n genieacs
 helm get values genieacs -n genieacs
 
 # Upgrade release
-helm upgrade genieacs genieacs/genieacs -n genieacs --set genieacs.image.tag=1.2.14
+helm upgrade genieacs genieacs/genieacs -n genieacs --set genieacs.image.tag=1.2.16
 
 # Rollback
 helm rollback genieacs -n genieacs
@@ -434,7 +497,7 @@ kubectl apply -f examples/argocd/genieacs-nbi-auth-app.yaml
 argocd app create genieacs \
   --repo https://cepat-kilat-teknologi.github.io/genieacs-stack \
   --helm-chart genieacs-nbi-auth \
-  --revision 0.2.0 \
+  --revision 0.3.0 \
   --dest-server https://kubernetes.default.svc \
   --dest-namespace genieacs \
   --sync-option CreateNamespace=true
@@ -460,30 +523,54 @@ argocd app sync genieacs
 
 ### Create Admin User
 
-#### Docker
+#### Docker (using Make)
 ```bash
 cd /path/to/genieacs-stack
-./scripts/create-user.sh admin yourpassword admin
+make create-user
 ```
+
+This reads `GENIEACS_ADMIN_USERNAME` and `GENIEACS_ADMIN_PASSWORD` from `.env` and performs the full setup:
+
+1. Hashes the password with PBKDF2-SHA512 and inserts the user into MongoDB
+2. Creates admin permissions (30 entries) so the user can access all pages
+3. On fresh installs, bootstraps default config (presets, provisions, overview layout)
+4. Invalidates the GenieACS internal cache so login works immediately
+
+After running this command, you can log in and see the full dashboard right away.
+
+#### Docker (custom credentials)
+```bash
+./scripts/create-user.sh myuser mypassword admin
+```
+
+Roles: `admin`, `readwrite`, `readonly`.
 
 #### Kubernetes / Helm
 ```bash
 # Get pod name
 POD=$(kubectl get pods -n genieacs -l app.kubernetes.io/name=genieacs -o jsonpath='{.items[0].metadata.name}')
+MONGO_POD=$(kubectl get pods -n genieacs -l app.kubernetes.io/name=mongodb -o jsonpath='{.items[0].metadata.name}')
 
-# Enter pod
-kubectl exec -it $POD -n genieacs -- /bin/bash
-
-# Create user (inside pod)
-# Note: Use the MongoDB connection URL from your configmap (includes auth credentials)
-cd /opt/genieacs
-node -e "
+# Generate hash inside the GenieACS pod
+HASH_JSON=$(kubectl exec $POD -n genieacs -- node -e "
 const crypto = require('crypto');
 const salt = crypto.randomBytes(64).toString('hex');
 const hash = crypto.pbkdf2Sync('yourpassword', salt, 10000, 128, 'sha512').toString('hex');
 console.log(JSON.stringify({_id:'admin',password:hash,salt:salt,roles:'admin'}));
-" | mongosh "mongodb://admin:YOUR_MONGO_PASSWORD@mongodb:27017/genieacs?authSource=admin" --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
+")
+
+# Insert into MongoDB (replace YOUR_MONGO_PASSWORD)
+echo "$HASH_JSON" | kubectl exec -i $MONGO_POD -n genieacs -- \
+  mongosh --quiet "mongodb://admin:YOUR_MONGO_PASSWORD@localhost:27017/genieacs?authSource=admin" \
+  --eval 'db.users.insertOne(JSON.parse(require("fs").readFileSync("/dev/stdin","utf8")))'
+
+# Invalidate cache so login works immediately
+kubectl exec $MONGO_POD -n genieacs -- \
+  mongosh --quiet "mongodb://admin:YOUR_MONGO_PASSWORD@localhost:27017/genieacs?authSource=admin" \
+  --eval 'db.cache.deleteOne({_id: "ui-local-cache-hash"})'
 ```
+
+> **Note:** After inserting users directly into MongoDB, you must invalidate the `ui-local-cache-hash` entry in the `cache` collection. GenieACS caches user data and won't see new users until the cache refreshes (up to 5 seconds after invalidation).
 
 ---
 
@@ -560,13 +647,25 @@ kubectl get configmap genieacs-config -n genieacs -o yaml | grep MONGODB_CONNECT
 **Docker MongoDB authentication failed:**
 ```bash
 # Check MongoDB logs
-docker compose logs mongodb
+docker compose logs mongo
 
 # Verify environment variables
 docker compose exec genieacs env | grep MONGO
 
 # Test MongoDB connection manually
-docker compose exec mongodb mongosh -u admin -p YOUR_PASSWORD --authenticationDatabase admin
+docker compose exec mongo mongosh -u admin -p YOUR_PASSWORD --authenticationDatabase admin
+```
+
+**Login fails after creating user ("Incorrect username or password"):**
+```bash
+# GenieACS caches user data internally. If you inserted users directly
+# into MongoDB (not via the create-user.sh script), clear the cache:
+docker exec mongo-genieacs mongosh --quiet \
+  "mongodb://admin:YOUR_MONGO_PASSWORD@localhost:27017/genieacs?authSource=admin" \
+  --eval 'db.cache.deleteOne({_id: "ui-local-cache-hash"})'
+
+# The user should be loginable within ~5 seconds after cache invalidation.
+# The create-user.sh script handles this automatically.
 ```
 
 **NBI returns 401:**

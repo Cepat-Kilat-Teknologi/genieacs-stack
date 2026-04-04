@@ -1,3 +1,8 @@
+{{- /* --------------------------------------------------------------------------
+  GenieACS ConfigMap
+  Stores non-sensitive configuration only. Secrets (JWT, MongoDB credentials,
+  connection strings) are managed separately in secret.yaml.
+  -------------------------------------------------------------------------- */}}
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -6,15 +11,6 @@ metadata:
     {{- include "genieacs.labels" . | nindent 4 }}
     app.kubernetes.io/component: config
 data:
-  {{- if .Values.mongodb.enabled }}
-  {{- if .Values.mongodb.auth.enabled }}
-  GENIEACS_MONGODB_CONNECTION_URL: {{ printf "mongodb://%s:%s@%s:%d/genieacs?authSource=admin" .Values.mongodb.auth.rootUsername .Values.mongodb.auth.rootPassword (include "genieacs.mongodb.name" .) (int .Values.mongodb.service.port) | quote }}
-  {{- else }}
-  GENIEACS_MONGODB_CONNECTION_URL: {{ printf "mongodb://%s:%d/genieacs" (include "genieacs.mongodb.name" .) (int .Values.mongodb.service.port) | quote }}
-  {{- end }}
-  {{- else }}
-  GENIEACS_MONGODB_CONNECTION_URL: {{ .Values.config.mongodbConnectionUrl | quote }}
-  {{- end }}
   GENIEACS_UI_AUTH: {{ .Values.config.uiAuth | quote }}
   GENIEACS_EXT_DIR: {{ .Values.config.extDir | quote }}
   NODE_ENV: {{ .Values.config.nodeEnv | quote }}

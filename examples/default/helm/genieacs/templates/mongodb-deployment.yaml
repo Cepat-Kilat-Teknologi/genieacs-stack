@@ -1,14 +1,19 @@
+{{- /* --------------------------------------------------------------------------
+  MongoDB StatefulSet
+  Deploys a single-node MongoDB instance using VolumeClaimTemplates for
+  persistent storage. Health probes authenticate via mongosh when auth is
+  enabled. The fsGroup (999) matches the MongoDB container's default UID.
+  -------------------------------------------------------------------------- */}}
 {{- if .Values.mongodb.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "genieacs.mongodb.name" . }}
   labels:
     {{- include "genieacs.mongodb.labels" . | nindent 4 }}
 spec:
+  serviceName: {{ include "genieacs.mongodb.name" . }}
   replicas: {{ .Values.mongodb.replicaCount }}
-  strategy:
-    type: Recreate
   selector:
     matchLabels:
       {{- include "genieacs.mongodb.selectorLabels" . | nindent 6 }}
@@ -17,6 +22,8 @@ spec:
       labels:
         {{- include "genieacs.mongodb.selectorLabels" . | nindent 8 }}
     spec:
+      securityContext:
+        fsGroup: 999
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -41,11 +48,6 @@ spec:
             - secretRef:
                 name: {{ .Values.mongodb.auth.existingSecret | default (printf "%s-secret" (include "genieacs.mongodb.name" .)) }}
           {{- end }}
-          env:
-            - name: MONGO_DATA_DIR
-              value: /data/db
-            - name: MONGO_LOG_DIR
-              value: /var/log/mongodb
           volumeMounts:
             - name: mongodb-data
               mountPath: /data/db
@@ -57,8 +59,10 @@ spec:
             exec:
               command:
                 - mongosh
+                - --quiet
                 - --eval
                 - "db.adminCommand('ping')"
+                - "mongodb://$(MONGO_INITDB_ROOT_USERNAME):$(MONGO_INITDB_ROOT_PASSWORD)@localhost:27017/admin?authSource=admin"
             initialDelaySeconds: {{ .Values.mongodb.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.mongodb.livenessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.mongodb.livenessProbe.timeoutSeconds }}
@@ -67,27 +71,42 @@ spec:
             exec:
               command:
                 - mongosh
+                - --quiet
                 - --eval
                 - "db.adminCommand('ping')"
+                - "mongodb://$(MONGO_INITDB_ROOT_USERNAME):$(MONGO_INITDB_ROOT_PASSWORD)@localhost:27017/admin?authSource=admin"
             initialDelaySeconds: {{ .Values.mongodb.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.mongodb.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.mongodb.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.mongodb.readinessProbe.failureThreshold }}
           securityContext:
             allowPrivilegeEscalation: false
-      volumes:
-        - name: mongodb-data
-          {{- if .Values.mongodb.persistence.data.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ include "genieacs.mongodb.name" . }}-data
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
-        - name: mongodb-configdb
-          {{- if .Values.mongodb.persistence.configdb.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ include "genieacs.mongodb.name" . }}-configdb
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
+            capabilities:
+              drop:
+                - ALL
+  volumeClaimTemplates:
+    {{- if .Values.mongodb.persistence.data.enabled }}
+    - metadata:
+        name: mongodb-data
+      spec:
+        accessModes: [ {{ .Values.mongodb.persistence.data.accessMode | quote }} ]
+        {{- if .Values.mongodb.persistence.data.storageClass }}
+        storageClassName: {{ .Values.mongodb.persistence.data.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.mongodb.persistence.data.size }}
+    {{- end }}
+    {{- if .Values.mongodb.persistence.configdb.enabled }}
+    - metadata:
+        name: mongodb-configdb
+      spec:
+        accessModes: [ {{ .Values.mongodb.persistence.configdb.accessMode | quote }} ]
+        {{- if .Values.mongodb.persistence.configdb.storageClass }}
+        storageClassName: {{ .Values.mongodb.persistence.configdb.storageClass | quote }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.mongodb.persistence.configdb.size }}
+    {{- end }}
 {{- end }}

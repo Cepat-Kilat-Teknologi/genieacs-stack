@@ -1,0 +1,98 @@
+# =============================================================================
+# Kubernetes Manifest Validation Workflow
+# =============================================================================
+# Purpose: Validate all Kubernetes manifests (raw YAML and Helm-rendered
+#          templates) against the official Kubernetes OpenAPI schema to catch
+#          structural errors, typos, and deprecated API usage BEFORE they
+#          reach a cluster.
+#
+# Why kubeconform?
+#   - Validates resources against the real Kubernetes OpenAPI spec, not just
+#     generic YAML syntax.  This catches issues like misspelled fields,
+#     wrong API versions, and invalid value types that plain YAML linting
+#     would miss.
+#   - Much faster than running a full "kubectl apply --dry-run=server".
+#
+# Why validate BOTH raw YAML and Helm-rendered output?
+#   - Raw YAML manifests (used with kubectl/kustomize) may have different
+#     content than the Helm templates.
+#   - Helm templates can introduce errors through Go template logic that
+#     only surface after rendering.  Validating the rendered output ensures
+#     the final manifests that would be applied to a cluster are correct.
+# =============================================================================
+
+name: Validate Manifests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'examples/*/kubernetes/**'
+      - 'examples/*/helm/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'examples/*/kubernetes/**'
+      - 'examples/*/helm/**'
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate Kubernetes Manifests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install kubeconform
+        run: |
+          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          sudo mv kubeconform /usr/local/bin/
+
+      # ---------------------------------------------------------------
+      # Raw YAML validation: these manifests are used directly with
+      # kubectl apply or Kustomize.  Validating them catches issues in
+      # hand-written YAML before it ever reaches a cluster.
+      #
+      # -strict        : reject unknown fields (catches typos)
+      # -kubernetes-version : pin the schema version for reproducibility
+      # -skip CRD      : CRDs define their own schema; kubeconform
+      #                   cannot validate them against the core API spec
+      # ---------------------------------------------------------------
+
+      - name: Validate default Kustomize manifests
+        run: |
+          kubeconform -strict -summary \
+            -kubernetes-version 1.29.0 \
+            -skip CustomResourceDefinition \
+            examples/default/kubernetes/*.yaml
+
+      - name: Validate nbi-auth Kustomize manifests
+        run: |
+          kubeconform -strict -summary \
+            -kubernetes-version 1.29.0 \
+            -skip CustomResourceDefinition \
+            examples/nbi-auth/kubernetes/*.yaml
+
+      - name: Install Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+
+      # ---------------------------------------------------------------
+      # Helm template validation: render the charts with default values
+      # and pipe the output through kubeconform.  This catches errors
+      # introduced by Go template logic (conditionals, loops, helpers)
+      # that only appear in the final rendered YAML.
+      # ---------------------------------------------------------------
+
+      - name: Validate Helm templates - default
+        run: |
+          helm template test examples/default/helm/genieacs | \
+            kubeconform -strict -summary -kubernetes-version 1.29.0
+
+      - name: Validate Helm templates - nbi-auth
+        run: |
+          helm template test examples/nbi-auth/helm/genieacs | \
+            kubeconform -strict -summary -kubernetes-version 1.29.0

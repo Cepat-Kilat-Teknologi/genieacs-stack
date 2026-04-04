@@ -1,0 +1,41 @@
+# =============================================================================
+# Dependabot Configuration
+# =============================================================================
+# Purpose: Automatically open PRs when dependencies have newer versions,
+#          keeping the project current and reducing exposure to known CVEs.
+#
+# Monitored ecosystems:
+#
+#   1. github-actions -- Keeps CI workflow action versions (e.g.,
+#      actions/checkout, docker/build-push-action) up to date.  Pinned
+#      action versions can fall behind on security patches; Dependabot
+#      ensures we notice and can upgrade promptly.
+#
+#   2. docker -- Watches the Dockerfile for base image updates (e.g.,
+#      node, alpine).  Outdated base images are one of the most common
+#      sources of container vulnerabilities.
+# =============================================================================
+
+version: 2
+updates:
+  # --- GitHub Actions ecosystem ---
+  # Tracks action versions used in .github/workflows/*.yml files.
+  # Weekly checks balance freshness with PR noise.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "ci"
+
+  # --- Docker ecosystem ---
+  # Tracks base image versions referenced in Dockerfile.
+  # Keeping base images current is critical for security patches.
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+      - "docker"

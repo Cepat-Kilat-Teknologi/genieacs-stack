@@ -34,6 +34,6 @@ labels:
 # Image customization (optional)
 # images:
 #   - name: cepatkilatteknologi/genieacs
-#     newTag: v1.2.13
+#     newTag: v1.2.16
 #   - name: mongo
 #     newTag: "8.0"

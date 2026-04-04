@@ -58,11 +58,11 @@ spec:
           livenessProbe:
             exec:
               command:
-                - mongosh
-                - --quiet
-                - --eval
-                - "db.adminCommand('ping')"
-                - "mongodb://$(MONGO_INITDB_ROOT_USERNAME):$(MONGO_INITDB_ROOT_PASSWORD)@localhost:27017/admin?authSource=admin"
+                - bash
+                - -c
+                - >-
+                  mongosh --quiet --eval "db.adminCommand('ping')"
+                  "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@localhost:27017/admin?authSource=admin"
             initialDelaySeconds: {{ .Values.mongodb.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.mongodb.livenessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.mongodb.livenessProbe.timeoutSeconds }}
@@ -70,20 +70,17 @@ spec:
           readinessProbe:
             exec:
               command:
-                - mongosh
-                - --quiet
-                - --eval
-                - "db.adminCommand('ping')"
-                - "mongodb://$(MONGO_INITDB_ROOT_USERNAME):$(MONGO_INITDB_ROOT_PASSWORD)@localhost:27017/admin?authSource=admin"
+                - bash
+                - -c
+                - >-
+                  mongosh --quiet --eval "db.adminCommand('ping')"
+                  "mongodb://$MONGO_INITDB_ROOT_USERNAME:$MONGO_INITDB_ROOT_PASSWORD@localhost:27017/admin?authSource=admin"
             initialDelaySeconds: {{ .Values.mongodb.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.mongodb.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.mongodb.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.mongodb.readinessProbe.failureThreshold }}
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
+          # MongoDB entrypoint requires root for chown; network isolation
+          # via NetworkPolicy protects access instead of container hardening.
   volumeClaimTemplates:
     {{- if .Values.mongodb.persistence.data.enabled }}
     - metadata:

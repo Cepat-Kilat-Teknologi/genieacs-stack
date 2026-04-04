@@ -55,14 +55,15 @@ Web ──► UI :3000 ──► GenieACS
 git clone https://github.com/Cepat-Kilat-Teknologi/genieacs-stack.git
 cd genieacs-stack
 
-cp .env.example .env
-# Edit .env and set GENIEACS_UI_JWT_SECRET (use: openssl rand -hex 32)
+make setup        # Creates .env from template
+# Edit .env and set secure secrets (use: openssl rand -hex 32)
 
-make setup && make up-d
-make create-user
+make build        # Build the Docker image locally
+make up-d         # Start MongoDB + GenieACS
+make create-user  # Create admin user + permissions + default config
 ```
 
-Access: http://localhost:3000
+Access: http://localhost:3000 (login with credentials from `.env`)
 
 ### Using Helm
 

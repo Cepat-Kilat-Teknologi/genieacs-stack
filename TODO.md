@@ -1,7 +1,7 @@
 # GenieACS Stack — TODO
 
 > Future enhancements for the GenieACS multiarch/multiplatform stack.
-> Phase 1-6 completed on 2026-04-04 (see ISSUE.md for full history).
+> Phase 1-6 completed on 2026-04-04. All 55 issues resolved (commit `ed5265b`).
 
 ---
 

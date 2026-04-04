@@ -1,0 +1,29 @@
+{{- /* --------------------------------------------------------------------------
+  ServiceMonitor (Prometheus Operator)
+  Enables automatic Prometheus scraping of GenieACS metrics. Requires the
+  Prometheus Operator and the ServiceMonitor CRD to be installed. Add
+  matching labels if your Prometheus uses a serviceMonitorSelector.
+  -------------------------------------------------------------------------- */}}
+{{- if .Values.metrics.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "genieacs.fullname" . }}
+  labels:
+    {{- include "genieacs.labels" . | nindent 4 }}
+    {{- with .Values.metrics.serviceMonitor.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "genieacs.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: ui
+      path: {{ .Values.metrics.serviceMonitor.path | default "/" }}
+      interval: {{ .Values.metrics.serviceMonitor.interval | default "30s" }}
+      scrapeTimeout: {{ .Values.metrics.serviceMonitor.scrapeTimeout | default "10s" }}
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+{{- end }}

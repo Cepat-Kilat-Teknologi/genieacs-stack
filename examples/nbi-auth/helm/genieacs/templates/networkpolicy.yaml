@@ -1,0 +1,28 @@
+{{- /* --------------------------------------------------------------------------
+  MongoDB NetworkPolicy
+  Restricts ingress to the MongoDB pod so that only GenieACS application
+  pods can connect on the MongoDB port. All other in-cluster traffic to
+  MongoDB is denied. Requires a CNI that supports NetworkPolicy.
+  -------------------------------------------------------------------------- */}}
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "genieacs.mongodb.name" . }}
+  labels:
+    {{- include "genieacs.mongodb.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "genieacs.mongodb.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "genieacs.selectorLabels" . | nindent 14 }}
+      ports:
+        - port: {{ .Values.mongodb.service.port }}
+          protocol: TCP
+{{- end }}

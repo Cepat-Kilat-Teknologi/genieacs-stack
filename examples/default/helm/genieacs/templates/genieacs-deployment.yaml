@@ -1,3 +1,9 @@
+{{- /* --------------------------------------------------------------------------
+  GenieACS Deployment
+  Deploys the GenieACS application with a wait-for-mongodb init container,
+  a startupProbe (allows up to 300s for first boot), and fsGroup-based volume
+  ownership. Uses RollingUpdate when replicaCount > 1, Recreate otherwise.
+  -------------------------------------------------------------------------- */}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -7,8 +13,16 @@ metadata:
     app.kubernetes.io/component: app
 spec:
   replicas: {{ .Values.genieacs.replicaCount }}
+  {{- if gt (int .Values.genieacs.replicaCount) 1 }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  {{- else }}
   strategy:
     type: Recreate
+  {{- end }}
   selector:
     matchLabels:
       {{- include "genieacs.selectorLabels" . | nindent 6 }}
@@ -22,6 +36,13 @@ spec:
         {{- include "genieacs.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: app
     spec:
+      serviceAccountName: {{ include "genieacs.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.genieacs.podSecurityContext | nindent 8 }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -34,34 +55,36 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- with .Values.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       initContainers:
-        - name: fix-permissions
-          image: "{{ .Values.genieacs.initContainers.busybox.image }}:{{ .Values.genieacs.initContainers.busybox.tag }}"
-          command:
-            - sh
-            - -c
-            - |
-              chown -R 1000:1000 /var/log/genieacs
-              chmod -R 755 /var/log/genieacs
-              chown -R 1000:1000 /opt/genieacs/ext
-              chmod -R 755 /opt/genieacs/ext
-              echo "Permissions fixed!"
-          volumeMounts:
-            - name: genieacs-logs
-              mountPath: /var/log/genieacs
-            - name: genieacs-ext
-              mountPath: /opt/genieacs/ext
         - name: wait-for-mongodb
           image: "{{ .Values.genieacs.initContainers.busybox.image }}:{{ .Values.genieacs.initContainers.busybox.tag }}"
           command:
             - sh
             - -c
             - |
+              TIMEOUT=300
+              ELAPSED=0
               until nc -z {{ include "genieacs.mongodb.name" . }} {{ .Values.mongodb.service.port }}; do
-                echo "Waiting for MongoDB..."
+                echo "Waiting for MongoDB... ($ELAPSED/$TIMEOUT)"
                 sleep 2
+                ELAPSED=$((ELAPSED + 2))
+                if [ $ELAPSED -ge $TIMEOUT ]; then
+                  echo "Timeout waiting for MongoDB"
+                  exit 1
+                fi
               done
               echo "MongoDB is ready!"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1000
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
       containers:
         - name: genieacs
           image: "{{ .Values.genieacs.image.repository }}:{{ .Values.genieacs.image.tag }}"
@@ -87,11 +110,16 @@ spec:
               mountPath: /opt/genieacs/ext
           resources:
             {{- toYaml .Values.genieacs.resources | nindent 12 }}
+          startupProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.genieacs.service.ports.ui }}
+            failureThreshold: 30
+            periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /
               port: {{ .Values.genieacs.service.ports.ui }}
-            initialDelaySeconds: {{ .Values.genieacs.livenessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.genieacs.livenessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.genieacs.livenessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.genieacs.livenessProbe.failureThreshold }}
@@ -99,7 +127,6 @@ spec:
             httpGet:
               path: /
               port: {{ .Values.genieacs.service.ports.ui }}
-            initialDelaySeconds: {{ .Values.genieacs.readinessProbe.initialDelaySeconds }}
             periodSeconds: {{ .Values.genieacs.readinessProbe.periodSeconds }}
             timeoutSeconds: {{ .Values.genieacs.readinessProbe.timeoutSeconds }}
             failureThreshold: {{ .Values.genieacs.readinessProbe.failureThreshold }}

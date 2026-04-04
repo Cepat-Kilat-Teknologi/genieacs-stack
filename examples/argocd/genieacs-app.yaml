@@ -12,7 +12,7 @@ spec:
     # Using Helm chart from repository
     repoURL: https://cepat-kilat-teknologi.github.io/genieacs-stack
     chart: genieacs
-    targetRevision: 0.2.0
+    targetRevision: 0.3.0
     helm:
       releaseName: genieacs
       values: |
@@ -30,7 +30,7 @@ spec:
           replicaCount: 1
           image:
             repository: cepatkilatteknologi/genieacs
-            tag: "1.2.13"
+            tag: "1.2.16"
             pullPolicy: IfNotPresent
           service:
             type: LoadBalancer

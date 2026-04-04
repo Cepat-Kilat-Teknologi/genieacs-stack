@@ -1,9 +1,29 @@
+# =============================================================================
+# Helm Chart Release Workflow
+# =============================================================================
+# Purpose: Lint, package, and publish GenieACS Helm charts whenever chart
+#          source files change on the main branch.
+#
+# Distribution channels:
+#   1. GitHub Pages (gh-pages branch) -- the traditional "helm repo add" model.
+#      A static index.yaml is generated so users can consume charts via:
+#        helm repo add genieacs https://cepat-kilat-teknologi.github.io/genieacs-stack
+#   2. OCI / GHCR -- the modern approach where charts are stored as OCI
+#      artifacts.  Kubernetes tooling (Helm 3.8+, Flux, ArgoCD) can pull
+#      charts directly from an OCI registry, which simplifies auth and
+#      removes the need for a separate HTTP chart server.
+#
+# Both channels are maintained simultaneously so consumers on older tooling
+# can still use the classic repository while modern setups benefit from OCI.
+# =============================================================================
+
 name: Helm
 
 on:
   push:
     branches:
       - main
+    # Only run when Helm chart source files actually change.
     paths:
       - 'examples/*/helm/**'
   workflow_dispatch:
@@ -12,14 +32,19 @@ jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
+      # Write access is needed to push to the gh-pages branch and to push
+      # OCI artifacts to GHCR via GITHUB_TOKEN.
       contents: write
 
     steps:
       - name: Checkout main
         uses: actions/checkout@v4
         with:
+          # Full history is required so helm-repo-index can detect which
+          # chart versions are new vs. already published.
           fetch-depth: 0
 
+      # Git identity is needed for the automated commit to gh-pages later.
       - name: Configure Git
         run: |
           git config user.name "${{ github.actor }}"
@@ -28,8 +53,32 @@ jobs:
       - name: Install Helm
         uses: azure/setup-helm@v4
         with:
-          version: v3.14.0
+          version: v3.16.3
 
+      # ---------------------------------------------------------------
+      # Lint BEFORE packaging so broken templates are caught early and
+      # the workflow fails fast, before any artifacts are published.
+      # --strict treats warnings as errors to enforce best practices.
+      # The "helm template" calls verify that Go templates render without
+      # error, even if the YAML structure is technically valid.
+      # ---------------------------------------------------------------
+      - name: Lint Helm Charts
+        run: |
+          echo "Linting genieacs chart..."
+          helm lint examples/default/helm/genieacs --strict
+
+          echo "Linting genieacs-nbi-auth chart..."
+          helm lint examples/nbi-auth/helm/genieacs --strict
+
+          echo "Template rendering test - default..."
+          helm template test examples/default/helm/genieacs > /dev/null
+
+          echo "Template rendering test - nbi-auth..."
+          helm template test examples/nbi-auth/helm/genieacs > /dev/null
+
+          echo "All charts passed validation!"
+
+      # Package each chart into a versioned .tgz archive.
       - name: Package Helm Charts
         run: |
           mkdir -p .helm-packages
@@ -46,6 +95,12 @@ jobs:
           echo "Packaged charts:"
           ls -la .helm-packages/
 
+      # ---------------------------------------------------------------
+      # gh-pages distribution: the classic Helm chart repository pattern.
+      # The gh-pages branch serves a static index.yaml that "helm repo add"
+      # reads.  We check it out into a subdirectory so we can merge new
+      # packages without losing previously published versions.
+      # ---------------------------------------------------------------
       - name: Checkout gh-pages branch
         uses: actions/checkout@v4
         with:
@@ -63,14 +118,28 @@ jobs:
           git config user.name "${{ github.actor }}"
           git config user.email "${{ github.actor }}@users.noreply.github.com"
 
-          # Generate/update index.yaml
+          # Regenerate index.yaml to include the newly added chart versions.
+          # The --url flag sets the download base URL that Helm clients use.
           helm repo index . --url https://cepat-kilat-teknologi.github.io/genieacs-stack
 
           # Show index content
           echo "Repository index:"
           cat index.yaml
 
-          # Commit and push
+          # Commit and push -- only if there are actual changes (the diff
+          # check avoids empty commits when re-running on the same chart).
           git add .
           git diff --staged --quiet || git commit -m "Release Helm charts - $(date +'%Y-%m-%d %H:%M:%S')"
           git push
+
+      # ---------------------------------------------------------------
+      # OCI distribution: push charts to GHCR as OCI artifacts.
+      # This enables "helm pull oci://ghcr.io/..." and native support in
+      # GitOps controllers (ArgoCD, Flux) without a Helm repo server.
+      # ---------------------------------------------------------------
+      - name: Push charts to GHCR (OCI)
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
+          for pkg in .helm-packages/*.tgz; do
+            helm push "$pkg" oci://ghcr.io/${{ github.repository_owner }}/charts
+          done

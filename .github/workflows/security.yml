@@ -75,7 +75,7 @@ jobs:
       # developers can review the full findings in the Security tab
       # regardless of whether the workflow passed or not.
       - name: Upload Trivy scan results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'

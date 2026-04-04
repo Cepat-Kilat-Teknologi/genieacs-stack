@@ -73,7 +73,7 @@ jobs:
       # QEMU lets Docker Buildx emulate arm64 on an amd64 runner so we can
       # produce multi-architecture images from a single job.
       - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
 
       # Buildx is the extended Docker builder that supports multi-platform
       # builds, advanced caching, and exporting provenance/SBOM metadata.

@@ -141,5 +141,5 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | helm registry login ghcr.io -u ${{ github.actor }} --password-stdin
           for pkg in .helm-packages/*.tgz; do
-            helm push "$pkg" oci://ghcr.io/${{ github.repository_owner }}/charts
+            helm push "$pkg" oci://ghcr.io/cepat-kilat-teknologi/charts
           done

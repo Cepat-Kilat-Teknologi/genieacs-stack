@@ -470,7 +470,9 @@ helm uninstall genieacs -n genieacs
 
 ## ArgoCD (GitOps)
 
-For GitOps deployment using ArgoCD with manual sync (recommended for production).
+For GitOps deployment using ArgoCD with manual sync (recommended for production). ArgoCD applications reference the published Helm charts and configure them with production-ready defaults.
+
+> **Note:** ArgoCD deployment requires ArgoCD to be installed on your cluster. The provided Application manifests are pre-configured with memory limits (2Gi), existingSecret support, and manual sync policy. See [examples/argocd/README.md](examples/argocd/README.md) for detailed configuration.
 
 ### Prerequisites
 

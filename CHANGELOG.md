@@ -48,6 +48,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OCI registry support for Helm charts (GHCR)
 
 ### Changed
+- Consolidated Kubernetes examples: removed `examples/kubernetes/` base+overlay, kept self-contained `examples/{default,nbi-auth}/kubernetes/` for consistency with Docker and Helm examples
+- `create-user.sh` now handles full fresh install bootstrap (user + permissions + UI config)
 - MongoDB converted from Deployment to StatefulSet in Helm charts
 - Replaced root `fix-permissions` init container with `fsGroup: 1000`
 - Added timeout (300s) to `wait-for-mongodb` init container

@@ -78,7 +78,7 @@ jobs:
       # Buildx is the extended Docker builder that supports multi-platform
       # builds, advanced caching, and exporting provenance/SBOM metadata.
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       # Cosign provides keyless (OIDC-based) image signing through Sigstore.
       # Skipped on PRs because fork PRs lack the id-token permission needed

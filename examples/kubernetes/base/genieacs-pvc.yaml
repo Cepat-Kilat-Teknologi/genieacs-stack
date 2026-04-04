@@ -1,0 +1,34 @@
+# GenieACS PVCs
+# Note: We only persist logs and extensions directory
+# The application files come from the Docker image and should NOT be overwritten
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: genieacs-logs
+  namespace: genieacs
+  labels:
+    app.kubernetes.io/name: genieacs
+    app.kubernetes.io/component: app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+  # storageClassName: standard
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: genieacs-ext
+  namespace: genieacs
+  labels:
+    app.kubernetes.io/name: genieacs
+    app.kubernetes.io/component: app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  # storageClassName: standard

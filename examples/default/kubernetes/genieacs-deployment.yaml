@@ -51,7 +51,7 @@ spec:
               echo "MongoDB is ready!"
       containers:
         - name: genieacs
-          image: cepatkilatteknologi/genieacs:1.2.13
+          image: cepatkilatteknologi/genieacs:1.2.16
           imagePullPolicy: IfNotPresent  # Use local image if available
           ports:
             - containerPort: 7547

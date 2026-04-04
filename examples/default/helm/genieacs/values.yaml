@@ -1,19 +1,47 @@
-# Default values for genieacs.
+# =============================================================================
+# GenieACS Helm Chart - Default Values (No NBI Authentication)
+# =============================================================================
+#
+# This is the DEFAULT chart variant. The NBI API (port 7557) is exposed
+# WITHOUT authentication. Use this variant only for development, testing, or
+# environments where NBI access is restricted by network controls.
+#
+# For production deployments that require NBI API key authentication,
+# use the "nbi-auth" chart variant instead.
+#
+# Quick start:
+#   helm install genieacs ./genieacs
+#
+# Override values:
+#   helm install genieacs ./genieacs -f my-values.yaml
+#
+# =============================================================================
 
-# Global settings
+# -- Global settings ----------------------------------------------------------
+# nameOverride: replaces the chart name in resource names.
+# fullnameOverride: replaces the entire generated resource name prefix.
 nameOverride: ""
 fullnameOverride: ""
 
+# =============================================================================
 # GenieACS Application
+# =============================================================================
+# Core GenieACS TR-069 auto-configuration server (ACS). Deploys a single
+# container running all four GenieACS services: CWMP, NBI, FS, and UI.
 genieacs:
+  # -- Container image for GenieACS
   image:
     repository: cepatkilatteknologi/genieacs
-    tag: "1.2.13"
+    tag: "1.2.16"
+    # Use IfNotPresent to avoid unnecessary pulls; switch to Always for mutable tags like "latest".
     pullPolicy: IfNotPresent
 
+  # -- Number of GenieACS pod replicas. Increase for high availability.
+  # When replicaCount > 1, the deployment uses RollingUpdate strategy (zero-downtime).
+  # When replicaCount == 1, it uses Recreate strategy (brief downtime on updates).
   replicaCount: 1
 
-  # Service configuration
+  # -- Service configuration (how GenieACS is exposed to the network)
   service:
     type: LoadBalancer
     # Fixed LoadBalancer IP (for MetalLB or similar)
@@ -28,11 +56,17 @@ genieacs:
     #   service.beta.kubernetes.io/azure-load-balancer-internal: "true"
     ports:
       cwmp: 7547
+      # WARNING: NBI API has no authentication in default variant.
+      # For production, use the nbi-auth chart variant or add NetworkPolicy.
       nbi: 7557
       fs: 7567
       ui: 3000
 
-  # Resource limits
+  # -- Resource requests and limits
+  # Requests: guaranteed minimum resources (used for scheduling decisions).
+  # Limits: maximum resources the container can consume.
+  # These defaults are suitable for small deployments (up to ~500 CPEs).
+  # For larger fleets, increase memory limits proportionally.
   resources:
     requests:
       cpu: "250m"
@@ -41,7 +75,10 @@ genieacs:
       cpu: "2000m"
       memory: "1Gi"
 
-  # Persistence for logs and extensions
+  # -- Persistent volume claims for logs and extensions
+  # When enabled, data survives pod restarts. When disabled, emptyDir is used
+  # and data is lost on pod deletion. Set storageClass to "" for the cluster
+  # default, or specify a class name (e.g., "gp3", "standard", "longhorn").
   persistence:
     logs:
       enabled: true
@@ -54,7 +91,11 @@ genieacs:
       storageClass: ""
       accessMode: ReadWriteOnce
 
-  # Probes
+  # -- Health check probes
+  # livenessProbe: restarts the container if it becomes unresponsive.
+  # readinessProbe: removes the pod from service endpoints until it is ready.
+  # The startup probe (defined in the deployment template) allows up to 300s
+  # for initial startup before liveness checks begin.
   livenessProbe:
     initialDelaySeconds: 90
     periodSeconds: 30
@@ -67,17 +108,39 @@ genieacs:
     timeoutSeconds: 5
     failureThreshold: 3
 
-  # Security context
+  # -- Pod-level security context
+  # Runs all containers as non-root user (UID 1000) for security hardening.
+  # fsGroup ensures mounted volumes are writable by the GenieACS process.
+  podSecurityContext:
+    fsGroup: 1000
+    runAsUser: 1000
+    runAsGroup: 1000
+    runAsNonRoot: true
+
+  # -- Container-level security context
+  # Drops all Linux capabilities and prevents privilege escalation.
+  # readOnlyRootFilesystem is false because GenieACS writes to /opt/genieacs.
   securityContext:
     allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false
+    capabilities:
+      drop:
+        - ALL
 
-  # Init container images
+  # -- Init container images
+  # The busybox init container waits for MongoDB to become reachable before
+  # starting GenieACS, preventing crash loops during initial deployment.
   initContainers:
     busybox:
       image: busybox
       tag: "1.37"
 
-# GenieACS Configuration
+# =============================================================================
+# GenieACS Configuration (non-sensitive)
+# =============================================================================
+# These values are stored in a ConfigMap (not a Secret). Do NOT put passwords,
+# tokens, or connection strings with credentials here. Use the "secret" section
+# or existingSecret for sensitive data.
 config:
   # MongoDB connection URL (uses internal service name by default)
   mongodbConnectionUrl: "mongodb://mongodb:27017/genieacs"
@@ -88,7 +151,14 @@ config:
   # Node environment
   nodeEnv: "production"
 
-# GenieACS Secret
+# =============================================================================
+# GenieACS Secrets
+# =============================================================================
+# WARNING: Contains security-sensitive values. In production, use one of:
+#   1. existingSecret - reference a pre-created Kubernetes Secret
+#   2. External secret managers (e.g., External Secrets Operator, Vault)
+#   3. Sealed Secrets for GitOps workflows
+# Never commit real secrets to version control.
 secret:
   # Use an existing secret instead of creating one
   # If set, the chart will NOT create a secret and will use this existing secret
@@ -99,7 +169,12 @@ secret:
   # Generate with: openssl rand -hex 32
   jwtSecret: "changeme-generate-with-openssl-rand-hex-32"
 
+# =============================================================================
 # MongoDB Configuration
+# =============================================================================
+# Deploys a single-node MongoDB instance as a StatefulSet. Set enabled=false
+# to use an external MongoDB (update config.mongodbConnectionUrl accordingly).
+# For production, consider a managed MongoDB service or a replica set.
 mongodb:
   enabled: true
 
@@ -110,7 +185,10 @@ mongodb:
 
   replicaCount: 1
 
-  # Authentication settings
+  # -- Authentication settings
+  # WARNING: When auth.enabled is true, you MUST set a strong rootPassword.
+  # The default password is intentionally invalid to force you to change it.
+  # Use existingSecret in production to avoid storing passwords in values files.
   auth:
     enabled: true
     # Use an existing secret for MongoDB credentials
@@ -123,11 +201,17 @@ mongodb:
     # Generate with: openssl rand -base64 24
     rootPassword: "changeme-generate-secure-password"
 
+  # -- MongoDB service configuration
+  # ClusterIP is the default because MongoDB should only be accessed by
+  # GenieACS pods within the cluster, not exposed externally.
   service:
     type: ClusterIP
     port: 27017
 
-  # Resource limits
+  # -- Resource requests and limits for MongoDB
+  # MongoDB benefits from generous memory allocation because it uses memory-mapped
+  # files. The 2Gi limit is suitable for small-to-medium deployments.
+  # For large CPE fleets (10,000+), increase memory to 4Gi or more.
   resources:
     requests:
       cpu: "250m"
@@ -136,7 +220,11 @@ mongodb:
       cpu: "2000m"
       memory: "2Gi"
 
-  # Persistence
+  # -- Persistence for MongoDB data and configuration
+  # IMPORTANT: Disabling persistence will cause data loss on pod restart.
+  # VolumeClaimTemplates are used (StatefulSet), so PVCs persist across pod
+  # rescheduling. To resize, you may need to delete the StatefulSet (not the PVC)
+  # and redeploy, or use volume expansion if your storage class supports it.
   persistence:
     data:
       enabled: true
@@ -149,7 +237,10 @@ mongodb:
       storageClass: ""
       accessMode: ReadWriteOnce
 
-  # Probes
+  # -- MongoDB health check probes
+  # Probes use mongosh to execute an authenticated admin ping command.
+  # Higher failureThreshold on liveness (6) gives MongoDB time to recover
+  # from temporary issues without unnecessary restarts.
   livenessProbe:
     initialDelaySeconds: 30
     periodSeconds: 10
@@ -162,20 +253,107 @@ mongodb:
     timeoutSeconds: 5
     failureThreshold: 3
 
-# Service Account
+# =============================================================================
+# Scheduling and Placement
+# =============================================================================
+
+# -- Service Account
+# Creates a dedicated ServiceAccount for GenieACS pods. Use annotations for
+# cloud IAM integration (e.g., AWS IRSA, GCP Workload Identity, Azure AD).
 serviceAccount:
-  create: false
+  create: true
   name: ""
   annotations: {}
 
-# Pod annotations
+# -- Image pull secrets for private container registries
+# Example: imagePullSecrets: [{name: "my-registry-secret"}]
+imagePullSecrets: []
+
+# -- Additional pod annotations (e.g., for Prometheus scraping, Vault injection)
 podAnnotations: {}
 
-# Node selector
+# -- Node selector constrains pods to nodes with matching labels
+# Example: nodeSelector: {disktype: ssd}
 nodeSelector: {}
 
-# Tolerations
+# -- Tolerations allow pods to schedule on tainted nodes
 tolerations: []
 
-# Affinity
+# -- Affinity rules for advanced pod scheduling (node affinity, pod anti-affinity)
 affinity: {}
+
+# -- Topology spread constraints distribute pods evenly across failure domains
+# Enable when running multiple replicas for high availability.
+topologySpreadConstraints: []
+# Example for multi-zone scheduling:
+#  - maxSkew: 1
+#    topologyKey: topology.kubernetes.io/zone
+#    whenUnsatisfiable: DoNotSchedule
+#    labelSelector:
+#      matchLabels:
+#        app.kubernetes.io/name: genieacs
+
+# =============================================================================
+# Optional Features (disabled by default)
+# =============================================================================
+# Enable these features based on your deployment requirements.
+
+# -- Horizontal Pod Autoscaler
+# Enable when traffic is variable and you want Kubernetes to automatically
+# adjust the number of GenieACS replicas based on CPU/memory utilization.
+# Requires the Metrics Server to be installed in the cluster.
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPUUtilizationPercentage: 80
+  # targetMemoryUtilizationPercentage: 80
+
+# -- Metrics / Monitoring
+# Enable when using Prometheus Operator (kube-prometheus-stack) to automatically
+# discover and scrape GenieACS metrics. The ServiceMonitor CRD must be available
+# in your cluster. Add labels matching your Prometheus instance's serviceMonitorSelector.
+metrics:
+  serviceMonitor:
+    enabled: false
+    # Additional labels for ServiceMonitor (e.g., for Prometheus operator selector)
+    labels: {}
+    path: "/"
+    interval: "30s"
+    scrapeTimeout: "10s"
+
+# -- Network Policy
+# Enable to restrict MongoDB access so that only GenieACS pods can connect.
+# Recommended for production to prevent unauthorized database access from other
+# pods in the namespace. Requires a CNI plugin that supports NetworkPolicy
+# (e.g., Calico, Cilium, Weave Net).
+networkPolicy:
+  enabled: false
+
+# -- Pod Disruption Budget
+# Enable when running multiple replicas to guarantee availability during
+# voluntary disruptions (node drains, cluster upgrades). Set minAvailable
+# or maxUnavailable (not both). Only useful when replicaCount > 1.
+podDisruptionBudget:
+  enabled: false
+  # minAvailable: 1
+  # maxUnavailable: 1
+
+# -- Ingress
+# Enable to expose GenieACS through an Ingress controller (e.g., nginx-ingress,
+# Traefik, AWS ALB). This provides TLS termination and hostname-based routing.
+# When using Ingress, you may want to change the service type to ClusterIP.
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  #  - host: genieacs.example.com
+  #    paths:
+  #      - path: /
+  #        pathType: Prefix
+  #        port: 3000
+  tls: []
+  #  - secretName: genieacs-tls
+  #    hosts:
+  #      - genieacs.example.com

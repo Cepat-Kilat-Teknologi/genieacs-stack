@@ -1,0 +1,125 @@
+# =============================================================================
+# Release Workflow: Single Source of Truth for Version Propagation
+# =============================================================================
+# Purpose: Bump the GenieACS application version and Helm chart version
+#          across EVERY file that references them, then create a Git tag.
+#
+# Why this exists:
+#   The version string appears in many places (Dockerfile, CI workflow,
+#   Makefile, Helm charts, Docker Compose files, Kubernetes manifests,
+#   ArgoCD app definitions).  Updating them by hand is error-prone and
+#   leads to version drift.  This workflow is the SINGLE source of truth:
+#   enter the version once via workflow_dispatch, and it propagates
+#   everywhere automatically.
+#
+# Trigger: Manual only (workflow_dispatch).  Releases are intentional
+#          human decisions, not automated events.  The operator provides
+#          both the application version (e.g., 1.2.16) and the Helm chart
+#          version (e.g., 0.3.0) through the GitHub Actions UI.
+#
+# What happens after this runs:
+#   The new "v*.*.*" tag triggers the docker-build.yml workflow, which
+#   builds, pushes, signs, and attests the Docker image automatically.
+# =============================================================================
+
+name: Release
+
+on:
+  # Manual trigger only -- the operator enters both version numbers via
+  # the GitHub Actions UI ("Run workflow" button).
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., 1.2.16)'
+        required: true
+        type: string
+      chart_version:
+        description: 'Helm chart version (e.g., 0.3.0)'
+        required: true
+        type: string
+
+jobs:
+  release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      # Write access is needed to push the version-bump commit and the
+      # new Git tag back to the repository.
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ---------------------------------------------------------------
+      # Update every file that contains a version reference.
+      # Each sed command targets a specific pattern so only the intended
+      # line is changed, minimizing the risk of accidental edits.
+      #
+      # Files updated:
+      #   - Dockerfile            : GENIEACS_VERSION build arg
+      #   - docker-build.yml      : IMAGE_VERSION env var
+      #   - Makefile              : VERSION variable
+      #   - Helm Chart.yaml (x2)  : chart version + appVersion
+      #   - Helm values.yaml (x2) : default image tag
+      #   - docker-compose.yml (x3): image tag in compose files
+      #   - K8s deployments (x2)  : container image tag
+      #   - ArgoCD app defs (x2)  : Helm value override for tag
+      # ---------------------------------------------------------------
+      - name: Update version references
+        env:
+          VERSION: ${{ inputs.version }}
+          CHART_VERSION: ${{ inputs.chart_version }}
+        run: |
+          # Dockerfile
+          sed -i "s/ARG GENIEACS_VERSION=.*/ARG GENIEACS_VERSION=${VERSION}/" Dockerfile
+
+          # CI workflow
+          sed -i "s/IMAGE_VERSION: '.*'/IMAGE_VERSION: '${VERSION}'/" .github/workflows/docker-build.yml
+
+          # Makefile
+          sed -i "s/VERSION = v.*/VERSION = v${VERSION}/" Makefile
+
+          # Helm charts
+          for chart in examples/default/helm/genieacs examples/nbi-auth/helm/genieacs; do
+            sed -i "s/^version: .*/version: ${CHART_VERSION}/" ${chart}/Chart.yaml
+            sed -i "s/^appVersion: .*/appVersion: \"${VERSION}\"/" ${chart}/Chart.yaml
+            sed -i "s/tag: \".*\"/tag: \"${VERSION}\"/" ${chart}/values.yaml
+          done
+
+          # Docker Compose files
+          for compose in docker-compose.yml examples/default/docker/docker-compose.yml examples/nbi-auth/docker/docker-compose.yml; do
+            sed -i "s|cepatkilatteknologi/genieacs:.*|cepatkilatteknologi/genieacs:${VERSION}|" ${compose}
+          done
+
+          # Kubernetes manifests
+          for deploy in examples/default/kubernetes/genieacs-deployment.yaml examples/nbi-auth/kubernetes/genieacs-deployment.yaml; do
+            sed -i "s|cepatkilatteknologi/genieacs:.*|cepatkilatteknologi/genieacs:${VERSION}|" ${deploy}
+          done
+
+          # ArgoCD
+          for app in examples/argocd/genieacs-app.yaml examples/argocd/genieacs-nbi-auth-app.yaml; do
+            sed -i "s/tag: \".*\"/tag: \"${VERSION}\"/" ${app}
+          done
+
+      # Commit the version bump as an automated bot so it is clearly
+      # distinguishable from human commits in the log.
+      - name: Commit version bump
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "chore: bump version to ${VERSION}"
+          git push
+
+      # Create and push a Git tag.  This tag (e.g., v1.2.16) triggers the
+      # docker-build.yml workflow via the "tags: [ v*.*.* ]" filter, which
+      # then builds and publishes the Docker image for this release.
+      - name: Create Git tag
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          git tag "v${VERSION}"
+          git push origin "v${VERSION}"

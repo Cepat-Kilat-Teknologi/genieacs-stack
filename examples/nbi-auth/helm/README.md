@@ -151,7 +151,7 @@ helm install genieacs ./examples/nbi-auth/helm/genieacs \
 | Parameter | Description | Default |
 |-----------|-------------|---------|
 | `genieacs.image.repository` | Image repository | `cepatkilatteknologi/genieacs` |
-| `genieacs.image.tag` | Image tag | `1.2.13` |
+| `genieacs.image.tag` | Image tag | `1.2.16` |
 | `genieacs.replicaCount` | Number of replicas | `1` |
 | `genieacs.service.type` | Service type | `LoadBalancer` |
 | `genieacs.service.loadBalancerIP` | Fixed LoadBalancer IP (MetalLB) | `""` |

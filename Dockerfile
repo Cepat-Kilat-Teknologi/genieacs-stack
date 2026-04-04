@@ -1,53 +1,85 @@
-FROM node:24-bookworm AS build
+# ==============================================================================
+# GenieACS Multi-Architecture Docker Image
+# ==============================================================================
+# Builds a production-ready GenieACS container for linux/amd64 and linux/arm64.
+# Uses a two-stage build: Node.js for compilation, Debian slim for runtime.
+#
+# Build:
+#   docker build -t genieacs:latest .
+#   docker build --build-arg GENIEACS_VERSION=1.2.16 -t genieacs:1.2.16 .
+#
+# Override base images in CI for exact pinning:
+#   docker build --build-arg NODE_VERSION=24.12 -t genieacs:latest .
+# ==============================================================================
 
-# Install build dependencies
-RUN apt-get update \
- && apt-get install -y python3 make g++ \
- && rm -rf /var/lib/apt/lists/*
+# Base image versions — pinned for reproducibility, updated via Dependabot.
+# Override in CI with --build-arg for exact version control.
+ARG NODE_VERSION=24
+ARG DEBIAN_VERSION=bookworm
 
-# Install GenieACS from npm
+# ------------------------------------------------------------------------------
+# Stage 1: Build — Install GenieACS and its Node.js dependencies
+# ------------------------------------------------------------------------------
+# Uses the slim variant to minimize the /usr/local tree copied to the final image.
+# No native modules (node-gyp) are needed for GenieACS 1.2.x, so build tools
+# like python3, make, and g++ are intentionally omitted.
+FROM node:${NODE_VERSION}-${DEBIAN_VERSION}-slim AS build
+
 WORKDIR /opt/genieacs
-ARG GENIEACS_VERSION=1.2.13
-RUN npm install --unsafe-perm genieacs@${GENIEACS_VERSION}
 
-# Fix known vulnerabilities in dependencies
-RUN npm audit fix --force || true
+# GenieACS version — change this to upgrade. All dependencies are pure JavaScript.
+ARG GENIEACS_VERSION=1.2.16
+RUN npm install genieacs@${GENIEACS_VERSION}
 
-# Update specific vulnerable packages
-RUN npm update koa qs path-to-regexp glob tar --save || true
+# ------------------------------------------------------------------------------
+# Stage 2: Runtime — Minimal Debian image with only what GenieACS needs
+# ------------------------------------------------------------------------------
+FROM debian:${DEBIAN_VERSION}-slim
 
-##################################
-# -------- Final image ----------#
-##################################
-FROM debian:bookworm-slim
-
-# Install packages and apply security updates
+# Install only the packages required at runtime:
+#   - supervisor: manages the 4 GenieACS processes (cwmp, nbi, fs, ui)
+#   - ca-certificates: required for TLS connections to external services
+#   - logrotate: rotates GenieACS log files to prevent disk exhaustion
+#   - curl: used by Docker/Kubernetes health checks
 RUN apt-get update \
  && apt-get upgrade -y \
  && apt-get install -y --no-install-recommends \
-      supervisor ca-certificates iputils-ping logrotate curl wget \
+      supervisor ca-certificates logrotate curl \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy Node runtime and GenieACS artefacts from the build stage
+# Copy the complete Node.js runtime and GenieACS installation from the build stage.
+# This includes the node binary, npm, and all GenieACS dependencies.
 COPY --from=build /usr/local /usr/local
 COPY --from=build /opt/genieacs /opt/genieacs
 
-# Supervisor configuration
+# Supervisor configuration — defines how the 4 GenieACS services are managed.
+# See config/supervisord.conf for process-level settings.
 COPY config/supervisord.conf /etc/supervisor/conf.d/genieacs.conf
 
-# Helper script to run services
+# Helper script that sets up the environment and launches a GenieACS service.
+# Called by supervisor for each of the 4 services (cwmp, nbi, fs, ui).
 COPY scripts/run_with_env.sh /usr/local/bin/run_with_env.sh
 RUN chmod +x /usr/local/bin/run_with_env.sh
 
-# Logrotate configuration
+# Log rotation policy — prevents GenieACS logs from filling the disk.
 COPY config/genieacs.logrotate /etc/logrotate.d/genieacs
 
-# Create runtime user (supervisor runs as root but spawns services as genieacs)
+# Create a non-root user for running GenieACS services.
+# Supervisor itself runs as root (PID 1) but spawns all GenieACS processes
+# as the 'genieacs' user (UID 1000) via the user= directive in supervisord.conf.
 RUN useradd --system --no-create-home --home /opt/genieacs genieacs \
  && mkdir -p /opt/genieacs/ext /var/log/genieacs \
  && chown -R genieacs:genieacs /opt/genieacs /var/log/genieacs
 
 WORKDIR /opt/genieacs
 
+# GenieACS service ports:
+#   7547 — CWMP (TR-069): CPE device management protocol
+#   7557 — NBI: Northbound Interface REST API
+#   7567 — FS: Firmware/file server for device updates
+#   3000 — UI: Web-based management interface
 EXPOSE 7547 7557 7567 3000
+
+# Start supervisor in foreground mode (-n) to keep the container running.
+# Supervisor manages all 4 GenieACS processes and restarts them on failure.
 CMD ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/conf.d/genieacs.conf"]

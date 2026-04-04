@@ -76,7 +76,7 @@ argocd app create -f genieacs-app.yaml
 argocd app create genieacs \
   --repo https://cepat-kilat-teknologi.github.io/genieacs-stack \
   --helm-chart genieacs \
-  --revision 0.2.0 \
+  --revision 0.3.0 \
   --dest-server https://kubernetes.default.svc \
   --dest-namespace genieacs \
   --sync-option CreateNamespace=true

@@ -1,35 +1,78 @@
-# .dockerignore
+# =============================================================================
+# .dockerignore -- Controls which files are sent to the Docker build context
+# =============================================================================
+#
+# Keeping the build context small has two benefits:
+#   1. Faster builds -- Docker does not need to transfer large or irrelevant
+#      files to the daemon.
+#   2. Better security -- secrets (.env), credentials, and local IDE state
+#      are never accidentally baked into the image layer cache.
+#
+# Rule of thumb: if the Dockerfile does not COPY or ADD it, exclude it here.
+# =============================================================================
+
+# --- Version control metadata (not needed inside the image) ---
 .git
 .gitignore
+
+# --- Dependency and debug artifacts (rebuilt inside the image) ---
 node_modules
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .nyc_output
 coverage
+
+# --- OS-generated files ---
 .DS_Store
 Thumbs.db
+
+# --- Secrets and environment files (must NEVER leak into an image layer) ---
 .env
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
+
+# --- Docker and Compose files themselves (self-referential; not needed) ---
 .dockerignore
 Dockerfile
 docker-compose*.yml
+
+# --- Documentation (not part of the runtime) ---
 README.md
 LICENSE
 CHANGELOG.md
+
+# --- CI/CD configuration (only used by pipeline runners, not the image) ---
 .gitlab-ci.yml
 .travis.yml
 .circleci
 .github
+
+# --- IDE and editor settings ---
 .vscode
 .idea
+
+# --- Compressed archives (large files that bloat the context) ---
 *.tar.gz
 *.zip
 *.7z
+
+# --- Build output directories (stale artifacts from the host) ---
 dist/
 build/
 logs/
 tmp/
+
+# --- Project directories that are not needed for the Docker image build ---
+# These contain Helm charts, example configs, backups, and docs -- useful
+# for operators but not required inside the container.
+examples/
+docs/
+backups/
+.github/
+ISSUE.md
+TODO.md
+INSTALLATION.md
+SECURITY.md

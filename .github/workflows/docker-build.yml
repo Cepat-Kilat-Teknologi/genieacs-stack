@@ -68,7 +68,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # QEMU lets Docker Buildx emulate arm64 on an amd64 runner so we can
       # produce multi-architecture images from a single job.

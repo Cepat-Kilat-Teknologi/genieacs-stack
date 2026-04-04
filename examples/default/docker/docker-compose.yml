@@ -175,10 +175,10 @@ services:
         # loop in a custom extension) from consuming all host CPU and memory.
         limits:
           cpus: '2'
-          memory: 1G
+          memory: 2G
         reservations:
           cpus: '0.25'
-          memory: 256M
+          memory: 512M
     # Security hardening: no-new-privileges prevents processes inside the
     # container from gaining additional privileges via setuid/setgid binaries
     # or capability escalation. This is compatible with supervisord because

@@ -32,8 +32,9 @@ Complete installation guide for GenieACS Stack. Choose the deployment method tha
 ### Kubernetes / Helm
 - Kubernetes cluster v1.25+
 - kubectl configured
-- Helm v3.10+ (for Helm deployments)
+- Helm v3.16+ (for Helm deployments)
 - Storage provisioner (for PVC)
+- 4GB RAM minimum per node (GenieACS pod needs ~1.5GB, MongoDB ~256MB)
 
 ### Security Requirements
 
@@ -186,39 +187,31 @@ curl http://localhost:7557/health
 
 ## Kubernetes (Kustomize)
 
-The recommended Kustomize layout uses a shared **base** with variant-specific **overlays**:
+Each variant has a self-contained Kustomize directory with all resources and a `kustomization.yaml`:
 
 ```
-examples/kubernetes/
-├── base/              # Shared resources (namespace, MongoDB, secrets)
-│   ├── kustomization.yaml
-│   ├── namespace.yaml
-│   ├── mongodb-*.yaml
-│   └── secret.yaml
-└── overlays/
-    ├── default/       # Standard deployment
-    └── nbi-auth/      # With NBI API key authentication
+examples/default/kubernetes/    # Standard deployment
+examples/nbi-auth/kubernetes/   # With NBI API key authentication
 ```
 
 ### K8s Default
 
 ```bash
-# Navigate to the overlay directory
-cd examples/kubernetes/overlays/default
+cd examples/default/kubernetes
 
 # Generate secrets
 JWT_SECRET=$(openssl rand -hex 32)
-MONGO_PASSWORD=$(openssl rand -base64 24)
+MONGO_PASSWORD=$(openssl rand -hex 16)
 
-# Update base secrets (shared across overlays)
+# Update secrets
 # macOS:
-sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" ../../base/secret.yaml
-sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" ../../base/mongodb-secret.yaml
+sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" secret.yaml
+sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" mongodb-secret.yaml
 # Linux:
-# sed -i "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" ../../base/secret.yaml
-# sed -i "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" ../../base/mongodb-secret.yaml
+# sed -i "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" secret.yaml
+# sed -i "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" mongodb-secret.yaml
 
-# Update overlay configmap with MongoDB credentials
+# Update configmap with MongoDB credentials
 # macOS:
 sed -i '' "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
 # Linux:
@@ -234,7 +227,7 @@ kubectl apply -k .
 # Wait for pods
 kubectl wait --for=condition=ready pod \
   -l app.kubernetes.io/name=genieacs \
-  -n genieacs --timeout=180s
+  -n genieacs --timeout=300s
 
 # Verify
 kubectl get all -n genieacs
@@ -249,23 +242,22 @@ kubectl port-forward svc/genieacs -n genieacs \
 ### K8s NBI Auth
 
 ```bash
-# Navigate to the overlay directory
-cd examples/kubernetes/overlays/nbi-auth
+cd examples/nbi-auth/kubernetes
 
 # Generate secrets
 JWT_SECRET=$(openssl rand -hex 32)
 API_KEY=$(openssl rand -hex 32)
-MONGO_PASSWORD=$(openssl rand -base64 24)
+MONGO_PASSWORD=$(openssl rand -hex 16)
 
-# Update base secrets (shared across overlays)
+# Update secrets
 # macOS:
-sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" ../../base/secret.yaml
-sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" ../../base/mongodb-secret.yaml
+sed -i '' "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" secret.yaml
+sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" mongodb-secret.yaml
 # Linux:
-# sed -i "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" ../../base/secret.yaml
-# sed -i "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" ../../base/mongodb-secret.yaml
+# sed -i "s/GENIEACS_UI_JWT_SECRET: .*/GENIEACS_UI_JWT_SECRET: \"$JWT_SECRET\"/" secret.yaml
+# sed -i "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO_PASSWORD\"/" mongodb-secret.yaml
 
-# Update overlay configmap with MongoDB credentials
+# Update configmap with MongoDB credentials
 # macOS:
 sed -i '' "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
 # Linux:
@@ -288,13 +280,11 @@ kubectl apply -k .
 # Wait for pods
 kubectl wait --for=condition=ready pod \
   -l app.kubernetes.io/name=genieacs \
-  -n genieacs --timeout=180s
+  -n genieacs --timeout=300s
 
 # Verify
 kubectl get all -n genieacs
 ```
-
-> **Note:** The old `examples/default/kubernetes/` and `examples/nbi-auth/kubernetes/` directories are deprecated. Use the base+overlay structure above for new deployments.
 
 ---
 
@@ -480,7 +470,9 @@ helm uninstall genieacs -n genieacs
 
 ## ArgoCD (GitOps)
 
-For GitOps deployment using ArgoCD with manual sync (recommended for production).
+For GitOps deployment using ArgoCD with manual sync (recommended for production). ArgoCD applications reference the published Helm charts and configure them with production-ready defaults.
+
+> **Note:** ArgoCD deployment requires ArgoCD to be installed on your cluster. The provided Application manifests are pre-configured with memory limits (2Gi), existingSecret support, and manual sync policy. See [examples/argocd/README.md](examples/argocd/README.md) for detailed configuration.
 
 ### Prerequisites
 

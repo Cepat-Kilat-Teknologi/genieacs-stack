@@ -109,12 +109,9 @@ spec:
               subPath: nginx.conf
           resources:
             {{- toYaml .Values.nbiAuth.resources | nindent 12 }}
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false
-            capabilities:
-              drop:
-                - ALL
+          # Nginx needs to chown temp dirs on startup; dropping ALL
+          # capabilities prevents this. Network-level auth via X-API-Key
+          # header provides the security layer instead.
         {{- end }}
         - name: genieacs
           image: "{{ .Values.genieacs.image.repository }}:{{ .Values.genieacs.image.tag }}"

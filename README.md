@@ -17,7 +17,8 @@ Complete deployment stack for [GenieACS](https://genieacs.com) v1.2.16 with Mong
 - **MongoDB Authentication** - Secure database access with username/password
 - **Multi-architecture** - amd64, arm64 support
 - **Note:** ARMv7 (32-bit ARM) is not supported — Node.js 24 dropped official ARMv7 binaries
-- **Production Ready** - Security hardened, health monitoring, log rotation, data persistence
+- **Production Ready** - NetworkPolicy isolation, health monitoring, log rotation, data persistence
+- **CI/CD** - Multi-arch build, Trivy scanning, cosign signing, Helm OCI push, Dependabot
 
 ## Architecture
 
@@ -83,9 +84,9 @@ helm install genieacs genieacs/genieacs \
 ### Using Kubernetes (Kustomize)
 
 ```bash
-cd examples/kubernetes/overlays/default
-# Edit ../../base/secret.yaml with your JWT secret
-# Edit ../../base/mongodb-secret.yaml with your MongoDB credentials
+cd examples/default/kubernetes
+# Edit secret.yaml with your JWT secret
+# Edit mongodb-secret.yaml with your MongoDB credentials
 # Edit configmap.yaml to match MongoDB credentials
 kubectl apply -k .
 ```
@@ -97,8 +98,9 @@ kubectl apply -k .
 | Type | Default | With NBI Auth | Description |
 |------|---------|---------------|-------------|
 | Docker | `examples/default/docker/` | `examples/nbi-auth/docker/` | Docker Compose |
-| Kubernetes | `examples/kubernetes/overlays/default/` | `examples/kubernetes/overlays/nbi-auth/` | Kustomize (base + overlays) |
+| Kubernetes | `examples/default/kubernetes/` | `examples/nbi-auth/kubernetes/` | Kustomize manifests |
 | Helm | `genieacs/genieacs` | `genieacs/genieacs-nbi-auth` | Helm charts |
+| ArgoCD | `examples/argocd/genieacs-app.yaml` | `examples/argocd/genieacs-nbi-auth-app.yaml` | GitOps (requires ArgoCD) |
 
 ## Services & Ports
 
@@ -136,15 +138,14 @@ kubectl apply -k .
 │   │   └── release.yml        # Version propagation automation
 │   └── dependabot.yml         # Automated dependency updates
 ├── examples/
-│   ├── default/               # Default variant (Docker, Helm)
+│   ├── default/               # Default variant
 │   │   ├── docker/
-│   │   └── helm/
-│   ├── nbi-auth/              # NBI API auth variant (Docker, Helm)
+│   │   ├── helm/
+│   │   └── kubernetes/        #   Kustomize manifests
+│   ├── nbi-auth/              # NBI API auth variant
 │   │   ├── docker/
-│   │   └── helm/
-│   ├── kubernetes/            # Kustomize (recommended)
-│   │   ├── base/              #   Shared resources
-│   │   └── overlays/          #   default / nbi-auth overlays
+│   │   ├── helm/
+│   │   └── kubernetes/        #   Kustomize manifests
 │   └── argocd/                # ArgoCD application manifests
 ├── config/                    # supervisord configuration
 ├── scripts/                   # Utility scripts (create-user, run_with_env)

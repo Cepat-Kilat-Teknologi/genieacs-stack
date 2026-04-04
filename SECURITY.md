@@ -27,9 +27,8 @@ GenieACS Stack includes several security features:
 | JWT Authentication | Web UI protected with JWT tokens |
 | NBI API Key Auth | Optional X-API-Key header authentication via Nginx |
 | MongoDB Authentication | Database access requires username/password |
-| Non-root Containers | Pods run as uid 1000 with `runAsNonRoot: true` |
-| Capability Dropping | All Linux capabilities dropped (`drop: [ALL]`) |
-| Privilege Escalation Blocked | `allowPrivilegeEscalation: false` on all containers |
+| Non-root Processes | Application processes run as non-root after init (supervisord `user=genieacs`, MongoDB `gosu`) |
+| Volume Isolation | `fsGroup` ensures proper volume ownership without root access at runtime |
 | NetworkPolicy | MongoDB access restricted to GenieACS pods only |
 | Secrets in K8s Secrets | Credentials stored in Secrets, not ConfigMaps |
 | CI Vulnerability Scanning | Trivy scans on push and weekly schedule |
@@ -358,28 +357,23 @@ Place a reverse proxy in front of GenieACS with TLS termination.
 
 ### Security Contexts
 
-All Kubernetes/Helm deployments include security hardening:
+Kubernetes/Helm deployments use volume-level security via `fsGroup` and network-level isolation via `NetworkPolicy`:
 
-**Pod-level:**
+**GenieACS pod:**
 ```yaml
 podSecurityContext:
-  fsGroup: 1000
-  runAsUser: 1000
-  runAsGroup: 1000
-  runAsNonRoot: true
+  fsGroup: 1000       # Volumes writable by genieacs user
 ```
 
-**Container-level:**
+**MongoDB pod:**
 ```yaml
-securityContext:
-  allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: false  # GenieACS writes to /opt/genieacs
-  capabilities:
-    drop:
-      - ALL
+podSecurityContext:
+  fsGroup: 999        # Volumes writable by mongodb user
 ```
 
-All Linux capabilities are dropped and privilege escalation is blocked. The init container also runs as non-root (uid 1000).
+> **Why not `runAsNonRoot`?** Both the official MongoDB image and GenieACS (via supervisord) require root at startup: MongoDB runs `chown` on data directories then drops to uid 999 via `gosu`; supervisord starts as root then switches child processes to `user=genieacs`. After initialization, all application processes run as non-root.
+
+**Network isolation** provides the primary security boundary — the `NetworkPolicy` template restricts MongoDB access to GenieACS pods only.
 
 ### Docker Security Options
 

@@ -70,10 +70,10 @@ genieacs:
   resources:
     requests:
       cpu: "250m"
-      memory: "256Mi"
+      memory: "512Mi"
     limits:
       cpu: "2000m"
-      memory: "1Gi"
+      memory: "2Gi"
 
   # -- Persistent volume claims for logs and extensions
   # When enabled, data survives pod restarts. When disabled, emptyDir is used
@@ -109,23 +109,18 @@ genieacs:
     failureThreshold: 3
 
   # -- Pod-level security context
-  # Runs all containers as non-root user (UID 1000) for security hardening.
-  # fsGroup ensures mounted volumes are writable by the GenieACS process.
+  # fsGroup ensures mounted volumes are writable by the GenieACS process (uid 1000).
+  # runAsUser/runAsNonRoot are NOT set because supervisord needs to start as root
+  # to manage child process user switching (user=genieacs in supervisord.conf).
+  # The no-new-privileges flag in Docker and NetworkPolicy in K8s provide isolation.
   podSecurityContext:
     fsGroup: 1000
-    runAsUser: 1000
-    runAsGroup: 1000
-    runAsNonRoot: true
 
   # -- Container-level security context
-  # Drops all Linux capabilities and prevents privilege escalation.
   # readOnlyRootFilesystem is false because GenieACS writes to /opt/genieacs.
+  # Privilege escalation must be allowed for supervisord user switching.
   securityContext:
-    allowPrivilegeEscalation: false
     readOnlyRootFilesystem: false
-    capabilities:
-      drop:
-        - ALL
 
   # -- Init container images
   # The busybox init container waits for MongoDB to become reachable before

@@ -3,10 +3,10 @@ entries:
   genieacs:
   - apiVersion: v2
     appVersion: 1.2.16
-    created: "2026-04-04T07:15:43.365223502Z"
+    created: "2026-04-04T07:20:26.977367604Z"
     description: A Helm chart for GenieACS - Open Source TR-069 Remote Management
       Solution
-    digest: 5214f366fbe612ee214093180a2abcc1f6b656bcb71a6632f575db161fa794a7
+    digest: a10b5183fe198f879eec147c7fbc7df78cac42566d150ec12826b5781b25f9f4
     home: https://genieacs.com
     keywords:
     - genieacs
@@ -26,7 +26,7 @@ entries:
     version: 0.3.0
   - apiVersion: v2
     appVersion: 1.2.13
-    created: "2026-04-04T07:15:43.364399708Z"
+    created: "2026-04-04T07:20:26.976558996Z"
     description: A Helm chart for GenieACS - Open Source TR-069 Remote Management
       Solution
     digest: 12fa35d38c0a7602cc6f6a0e1865a44465fa02eaf090488a691d6fd5c48ce41e
@@ -48,7 +48,7 @@ entries:
     version: 0.2.0
   - apiVersion: v2
     appVersion: 1.2.13
-    created: "2026-04-04T07:15:43.363853531Z"
+    created: "2026-04-04T07:20:26.97594989Z"
     description: A Helm chart for GenieACS - Open Source TR-069 Remote Management
       Solution
     digest: 4ad17ab5695e78ae757c2712e56321fde49de77a35ce934570120f4c25b4c1ae
@@ -71,9 +71,9 @@ entries:
   genieacs-nbi-auth:
   - apiVersion: v2
     appVersion: 1.2.16
-    created: "2026-04-04T07:15:43.367260716Z"
+    created: "2026-04-04T07:20:26.979531138Z"
     description: A Helm chart for GenieACS with NBI API Key Authentication
-    digest: a560c68b6a41b43a66a2c04de8c183175b6c9ae55a37819e8798dc0e910b3c29
+    digest: bcbce4d2f02c4e3f327ba7dc9d0122e2c9960014a07efc930e673ffd0f0f6ca6
     home: https://genieacs.com
     keywords:
     - genieacs
@@ -94,7 +94,7 @@ entries:
     version: 0.3.0
   - apiVersion: v2
     appVersion: 1.2.13
-    created: "2026-04-04T07:15:43.366390867Z"
+    created: "2026-04-04T07:20:26.978620149Z"
     description: A Helm chart for GenieACS with NBI API Key Authentication
     digest: f2be8787c1ac3fc3f17033d4fb4a50fdda37283221df5b28ebfda4e604970b0f
     home: https://genieacs.com
@@ -116,7 +116,7 @@ entries:
     version: 0.2.0
   - apiVersion: v2
     appVersion: 1.2.13
-    created: "2026-04-04T07:15:43.365796249Z"
+    created: "2026-04-04T07:20:26.97798236Z"
     description: A Helm chart for GenieACS with NBI API Key Authentication
     digest: 5d9271f002ae1917628b01aa0acd9b697d140fea0e973c04485f21251b6b0e15
     home: https://genieacs.com
@@ -136,4 +136,4 @@ entries:
     urls:
     - https://cepat-kilat-teknologi.github.io/genieacs-stack/genieacs-nbi-auth-0.1.0.tgz
     version: 0.1.0
-generated: "2026-04-04T07:15:43.363109396Z"
+generated: "2026-04-04T07:20:26.975222764Z"

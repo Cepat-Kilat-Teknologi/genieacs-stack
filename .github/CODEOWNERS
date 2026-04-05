@@ -1,0 +1,7 @@
+# Default code owners for the GenieACS Stack repository.
+# These users will be automatically requested for review on all pull requests.
+#
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global owner — applies to all files unless overridden below
+* @sumitroajiprabowo

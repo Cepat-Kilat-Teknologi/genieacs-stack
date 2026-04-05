@@ -1,0 +1,192 @@
+# =============================================================================
+# Smoke Test Workflow
+# =============================================================================
+# Purpose: Boot the full GenieACS stack (MongoDB + GenieACS) using Docker
+#          Compose and verify that all four services respond to HTTP requests.
+#
+# Why a smoke test?
+#   Unit tests and image scans catch code defects and CVEs, but neither
+#   proves the stack actually STARTS and SERVES TRAFFIC.  This workflow
+#   spins up the real containers, waits for Docker healthchecks to pass,
+#   and then hits every exposed endpoint.  If a configuration change, base
+#   image update, or dependency bump breaks startup, this test catches it
+#   before it reaches users.
+#
+# What is tested?
+#   - MongoDB initializes with authentication and passes its healthcheck.
+#   - GenieACS connects to MongoDB, starts all four sub-services under
+#     supervisord, and passes its own healthcheck.
+#   - HTTP connectivity to UI (:3000), NBI (:7557), CWMP (:7547), and
+#     FS (:7567) from outside the container network.
+# =============================================================================
+
+name: Smoke Test
+
+on:
+  push:
+    branches: [main]
+    # Only run when files that affect the runtime stack change.
+    paths:
+      - 'Dockerfile'
+      - 'config/**'
+      - 'scripts/**'
+      - 'docker-compose.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'Dockerfile'
+      - 'config/**'
+      - 'scripts/**'
+      - 'docker-compose.yml'
+  # Allow manual triggering for ad-hoc validation (e.g., after a base
+  # image update on Docker Hub that does not change any tracked files).
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    name: Docker Compose Smoke Test
+    runs-on: ubuntu-latest
+    # No special permissions needed -- we only build and run locally.
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      # ---------------------------------------------------------------
+      # Create a .env file with safe, throwaway test credentials.
+      # These values are intentionally weak because this environment is
+      # ephemeral (destroyed when the runner exits) and never exposed
+      # to the internet.  NEVER copy these into a real deployment.
+      # ---------------------------------------------------------------
+      - name: Create .env with test credentials
+        run: |
+          cat > .env <<'EOF'
+          MONGO_INITDB_ROOT_USERNAME=admin
+          MONGO_INITDB_ROOT_PASSWORD=smoke-test-password-not-for-production
+          GENIEACS_UI_JWT_SECRET=smoke-test-jwt-secret-at-least-32-characters-long
+          GENIEACS_MONGODB_CONNECTION_URL=mongodb://admin:smoke-test-password-not-for-production@mongo:27017/genieacs?authSource=admin
+          GENIEACS_UI_AUTH=true
+          GENIEACS_CWMP_PORT=7547
+          GENIEACS_NBI_PORT=7557
+          GENIEACS_FS_PORT=7567
+          GENIEACS_UI_PORT=3000
+          EOF
+
+      # ---------------------------------------------------------------
+      # Build the GenieACS image locally from the Dockerfile.  This
+      # ensures we test the exact image that would be produced from the
+      # current commit, not a previously published registry image.
+      # ---------------------------------------------------------------
+      - name: Build Docker image
+        run: docker compose build
+
+      # ---------------------------------------------------------------
+      # Start the full stack in detached mode.  Docker Compose will
+      # launch MongoDB first (because GenieACS depends_on mongo with
+      # condition: service_healthy), then GenieACS once Mongo is ready.
+      # ---------------------------------------------------------------
+      - name: Start the stack
+        run: docker compose up -d
+
+      # ---------------------------------------------------------------
+      # Wait for both containers to report "healthy" status.  The
+      # docker-compose.yml defines healthchecks with start_period of
+      # 30s (mongo) and 90s (genieacs), so we allow up to 120 seconds
+      # total.  The loop polls every 5 seconds to catch readiness as
+      # early as possible without hammering the Docker daemon.
+      # ---------------------------------------------------------------
+      - name: Wait for services to be healthy
+        run: |
+          echo "Waiting for all services to become healthy (timeout: 120s)..."
+          elapsed=0
+          timeout=120
+          interval=5
+
+          while [ $elapsed -lt $timeout ]; do
+            # Count how many services report "healthy" in docker compose ps.
+            # The grep pattern matches the "healthy" status string in JSON output.
+            healthy_count=$(docker compose ps --format json | grep -c '"healthy"' || true)
+
+            if [ "$healthy_count" -ge 2 ]; then
+              echo "All services are healthy after ${elapsed}s."
+              docker compose ps
+              exit 0
+            fi
+
+            echo "  ${elapsed}s elapsed -- ${healthy_count}/2 services healthy, retrying in ${interval}s..."
+            sleep $interval
+            elapsed=$((elapsed + interval))
+          done
+
+          echo "ERROR: Services did not become healthy within ${timeout}s."
+          docker compose ps
+          exit 1
+
+      # ---------------------------------------------------------------
+      # Endpoint checks: verify that each GenieACS sub-service is
+      # reachable from the host and returns a valid HTTP response.
+      #
+      # - UI and NBI are expected to return HTTP 200 (curl -sf succeeds).
+      # - CWMP and FS may return non-200 codes (e.g., 400, 404) because
+      #   they expect specific request formats, but they should still
+      #   accept TCP connections and return HTTP responses.  We use
+      #   curl -s -o /dev/null -w "%{http_code}" and check that the
+      #   response code is non-zero (i.e., the service is listening).
+      # ---------------------------------------------------------------
+      - name: Verify UI endpoint (port 3000)
+        run: |
+          echo "Checking GenieACS UI at http://localhost:3000/ ..."
+          curl -sf --max-time 10 http://localhost:3000/
+          echo "UI endpoint is responding."
+
+      - name: Verify NBI endpoint (port 7557)
+        run: |
+          echo "Checking GenieACS NBI at http://localhost:7557/devices ..."
+          curl -sf --max-time 10 http://localhost:7557/devices
+          echo "NBI endpoint is responding."
+
+      - name: Verify CWMP endpoint (port 7547)
+        run: |
+          echo "Checking GenieACS CWMP at http://localhost:7547 ..."
+          # CWMP expects a SOAP POST from CPE devices, so a plain GET will
+          # not return 200.  We just verify the service is listening and
+          # returns any HTTP response (connection not refused).
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 http://localhost:7547 || true)
+          if [ -n "$http_code" ] && [ "$http_code" -gt 0 ] 2>/dev/null; then
+            echo "CWMP endpoint is responding (HTTP ${http_code})."
+          else
+            echo "ERROR: CWMP endpoint is not responding."
+            exit 1
+          fi
+
+      - name: Verify FS endpoint (port 7567)
+        run: |
+          echo "Checking GenieACS FS at http://localhost:7567 ..."
+          # File Server may return 404 for a bare root request, but it
+          # should still accept connections and return an HTTP status.
+          http_code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 10 http://localhost:7567 || true)
+          if [ -n "$http_code" ] && [ "$http_code" -gt 0 ] 2>/dev/null; then
+            echo "FS endpoint is responding (HTTP ${http_code})."
+          else
+            echo "ERROR: FS endpoint is not responding."
+            exit 1
+          fi
+
+      # ---------------------------------------------------------------
+      # On failure, dump the full container logs so developers can
+      # diagnose startup errors without re-running the workflow locally.
+      # The "if: failure()" condition means this step ONLY runs when a
+      # previous step has failed.
+      # ---------------------------------------------------------------
+      - name: Show container logs on failure
+        if: failure()
+        run: docker compose logs --tail=200
+
+      # ---------------------------------------------------------------
+      # Clean up: tear down containers and remove named volumes to
+      # leave the runner in a pristine state.  This runs regardless of
+      # whether previous steps passed or failed (if: always()).
+      # ---------------------------------------------------------------
+      - name: Cleanup
+        if: always()
+        run: docker compose down -v

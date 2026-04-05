@@ -1,0 +1,93 @@
+{{- /* --------------------------------------------------------------------------
+  Helm Test Pod (NBI auth variant)
+  Verifies that GenieACS UI, NBI API, MongoDB, and (when enabled) the
+  nginx NBI auth proxy are reachable after installation.
+  Run with: helm test <release-name>
+  -------------------------------------------------------------------------- */}}
+apiVersion: v1
+kind: Pod
+metadata:
+  name: "{{ include "genieacs.fullname" . }}-test-connection"
+  labels:
+    {{- include "genieacs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: test
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  restartPolicy: Never
+  containers:
+    - name: test-genieacs-ui
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          echo "Testing GenieACS UI on port {{ .Values.genieacs.service.ports.ui }}..."
+          wget -q -O /dev/null --spider --timeout=10 \
+            http://{{ include "genieacs.fullname" . }}:{{ .Values.genieacs.service.ports.ui }}/ \
+            && echo "PASS: GenieACS UI is reachable" \
+            || (echo "FAIL: GenieACS UI is not reachable" && exit 1)
+    - name: test-genieacs-nbi
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          echo "Testing GenieACS NBI API on port {{ .Values.genieacs.service.ports.nbi }}..."
+          {{- if .Values.nbiAuth.enabled }}
+          # NBI port routes through nginx auth proxy; unauthenticated request should return 401
+          HTTP_CODE=$(wget -q -O /dev/null --server-response --timeout=10 \
+            http://{{ include "genieacs.fullname" . }}:{{ .Values.genieacs.service.ports.nbi }}/devices 2>&1 \
+            | awk '/HTTP\//{print $2}' | tail -1)
+          if [ "$HTTP_CODE" = "401" ]; then
+            echo "PASS: NBI auth proxy returned 401 for unauthenticated request"
+          else
+            echo "FAIL: Expected HTTP 401 from NBI auth proxy, got $HTTP_CODE"
+            exit 1
+          fi
+          {{- else }}
+          wget -q -O /dev/null --spider --timeout=10 \
+            http://{{ include "genieacs.fullname" . }}:{{ .Values.genieacs.service.ports.nbi }}/devices \
+            && echo "PASS: GenieACS NBI API is reachable" \
+            || (echo "FAIL: GenieACS NBI API is not reachable" && exit 1)
+          {{- end }}
+    {{- if .Values.nbiAuth.enabled }}
+    - name: test-nbi-auth-with-key
+      image: busybox:1.37
+      env:
+        - name: NBI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              {{- if .Values.nbiAuth.existingSecret }}
+              name: {{ .Values.nbiAuth.existingSecret }}
+              {{- else }}
+              name: {{ include "genieacs.fullname" . }}-nbi-auth
+              {{- end }}
+              key: NBI_API_KEY
+      command:
+        - sh
+        - -c
+        - |
+          echo "Testing NBI auth proxy with valid API key..."
+          HTTP_CODE=$(wget -q -O /dev/null --server-response --timeout=10 \
+            --header="X-API-Key: $NBI_API_KEY" \
+            http://{{ include "genieacs.fullname" . }}:{{ .Values.genieacs.service.ports.nbi }}/devices 2>&1 \
+            | awk '/HTTP\//{print $2}' | tail -1)
+          if [ "$HTTP_CODE" = "200" ]; then
+            echo "PASS: NBI auth proxy returned 200 with valid API key"
+          else
+            echo "FAIL: Expected HTTP 200 from NBI auth proxy with valid key, got $HTTP_CODE"
+            exit 1
+          fi
+    {{- end }}
+    - name: test-mongodb
+      image: busybox:1.37
+      command:
+        - sh
+        - -c
+        - |
+          echo "Testing MongoDB on port {{ .Values.mongodb.service.port }}..."
+          nc -z -w 10 {{ include "genieacs.mongodb.name" . }} {{ .Values.mongodb.service.port }} \
+            && echo "PASS: MongoDB is reachable" \
+            || (echo "FAIL: MongoDB is not reachable" && exit 1)

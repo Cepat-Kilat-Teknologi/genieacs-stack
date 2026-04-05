@@ -1,0 +1,90 @@
+{{- /* --------------------------------------------------------------------------
+  MongoDB Backup CronJob
+  Runs mongodump on a configurable schedule to create timestamped backups of
+  the GenieACS MongoDB database. Old backups are automatically pruned based
+  on the retention setting. Backup data is written to a PVC so it survives
+  pod eviction.
+  -------------------------------------------------------------------------- */}}
+{{- if .Values.backup.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "genieacs.fullname" . }}-mongodb-backup
+  labels:
+    {{- include "genieacs.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backup
+spec:
+  schedule: {{ .Values.backup.schedule | quote }}
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    metadata:
+      labels:
+        {{- include "genieacs.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backup
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "genieacs.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: backup
+        spec:
+          restartPolicy: OnFailure
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 999
+            fsGroup: 999
+          containers:
+            - name: mongodump
+              image: "{{ .Values.backup.image.repository }}:{{ .Values.backup.image.tag }}"
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  BACKUP_DIR="/backup/${TIMESTAMP}"
+                  echo "Starting MongoDB backup to ${BACKUP_DIR} ..."
+                  mongodump \
+                    --host={{ include "genieacs.mongodb.name" . }} \
+                    --port=27017 \
+                    --username="${MONGO_INITDB_ROOT_USERNAME}" \
+                    --password="${MONGO_INITDB_ROOT_PASSWORD}" \
+                    --authenticationDatabase=admin \
+                    --out="${BACKUP_DIR}"
+                  echo "Backup completed: ${BACKUP_DIR}"
+                  # Prune backups older than the retention period
+                  echo "Pruning backups older than {{ .Values.backup.retention }} days ..."
+                  find /backup -maxdepth 1 -mindepth 1 -type d -mtime +{{ .Values.backup.retention }} -exec rm -rf {} +
+                  echo "Pruning completed. Remaining backups:"
+                  ls -1 /backup/
+              envFrom:
+                - secretRef:
+                    name: {{ .Values.mongodb.auth.existingSecret | default (printf "%s-secret" (include "genieacs.mongodb.name" .)) }}
+              volumeMounts:
+                - name: backup-storage
+                  mountPath: /backup
+              resources:
+                {{- toYaml .Values.backup.resources | nindent 16 }}
+              securityContext:
+                readOnlyRootFilesystem: false
+                allowPrivilegeEscalation: false
+          volumes:
+            - name: backup-storage
+              {{- if .Values.backup.persistence.enabled }}
+              persistentVolumeClaim:
+                claimName: {{ include "genieacs.fullname" . }}-mongodb-backup
+              {{- else }}
+              emptyDir: {}
+              {{- end }}
+          {{- with .Values.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}

@@ -38,6 +38,9 @@ make fresh       # Clean restart with new image
 make test        # Verify
 ```
 
+**CI smoke test:**
+The `smoke-test.yml` workflow automatically boots the full stack with Docker Compose and verifies all endpoints on PRs that modify the Dockerfile, config, or scripts.
+
 **Helm chart changes:**
 ```bash
 make lint-helm      # Lint both charts

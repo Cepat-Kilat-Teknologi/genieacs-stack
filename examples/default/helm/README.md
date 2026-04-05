@@ -174,6 +174,19 @@ helm install genieacs ./examples/default/helm/genieacs \
 | `config.uiAuth` | Enable UI authentication | `true` |
 | `config.nodeEnv` | Node environment | `production` |
 
+#### Backup Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `backup.enabled` | Enable MongoDB backup CronJob | `false` |
+| `backup.schedule` | Cron schedule for backups | `"0 2 * * *"` |
+| `backup.retention` | Days to retain backups | `7` |
+| `backup.image.repository` | Backup job image | `mongo` |
+| `backup.image.tag` | Backup job image tag | `"8.0"` |
+| `backup.persistence.enabled` | Enable PVC for backups | `true` |
+| `backup.persistence.size` | Backup PVC size | `10Gi` |
+| `backup.persistence.storageClass` | Storage class | `""` |
+
 ## Helm Commands
 
 ### Upgrade Release
@@ -215,6 +228,16 @@ helm get values genieacs -n genieacs
 # Get manifest
 helm get manifest genieacs -n genieacs
 ```
+
+### Helm Test
+
+Run the built-in connection tests to verify that the deployment is healthy:
+
+```bash
+helm test genieacs -n genieacs
+```
+
+This executes tests that validate connectivity to the Web UI (port 3000), NBI API (port 7557), and MongoDB (port 27017).
 
 ## Using External MongoDB
 
@@ -275,6 +298,11 @@ Access via port-forward:
 kubectl port-forward -n genieacs svc/genieacs 3000:3000 7547:7547 7557:7557 7567:7567
 ```
 
+> **Note:** When using an Ingress controller for TLS termination, you can use
+> [cert-manager](https://cert-manager.io/) annotations to automate certificate
+> provisioning. Add the annotation `cert-manager.io/cluster-issuer` to your
+> Ingress resource to enable automatic TLS certificate management.
+
 ## File Structure
 
 ```
@@ -295,6 +323,10 @@ helm/
         ├── genieacs-pvc.yaml   # GenieACS storage
         ├── genieacs-deployment.yaml
         ├── genieacs-service.yaml
+        ├── backup-cronjob.yaml # MongoDB backup CronJob
+        ├── backup-pvc.yaml     # Backup storage
+        ├── tests/
+        │   └── test-connection.yaml  # Helm test pod
         └── NOTES.txt           # Post-install notes
 ```
 

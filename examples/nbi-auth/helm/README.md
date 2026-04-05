@@ -186,6 +186,19 @@ helm install genieacs ./examples/nbi-auth/helm/genieacs \
 | `secret.jwtSecret` | JWT secret for UI auth | (placeholder) |
 | `config.uiAuth` | Enable UI authentication | `true` |
 
+#### Backup Configuration
+
+| Parameter | Description | Default |
+|-----------|-------------|---------|
+| `backup.enabled` | Enable MongoDB backup CronJob | `false` |
+| `backup.schedule` | Cron schedule for backups | `"0 2 * * *"` |
+| `backup.retention` | Days to retain backups | `7` |
+| `backup.image.repository` | Backup job image | `mongo` |
+| `backup.image.tag` | Backup job image tag | `"8.0"` |
+| `backup.persistence.enabled` | Enable PVC for backups | `true` |
+| `backup.persistence.size` | Backup PVC size | `10Gi` |
+| `backup.persistence.storageClass` | Storage class | `""` |
+
 ## NBI API Usage
 
 ### Usage Examples
@@ -258,6 +271,16 @@ helm get values genieacs -n genieacs
 helm get manifest genieacs -n genieacs
 ```
 
+### Helm Test
+
+Run the built-in connection tests to verify that the deployment is healthy:
+
+```bash
+helm test genieacs -n genieacs
+```
+
+This executes tests that validate connectivity to the Web UI (port 3000), NBI API (port 7557), and MongoDB (port 27017).
+
 ## Architecture
 
 ```
@@ -301,6 +324,10 @@ helm/
         ├── genieacs-pvc.yaml   # GenieACS storage
         ├── genieacs-deployment.yaml  # GenieACS + Nginx sidecar
         ├── genieacs-service.yaml
+        ├── backup-cronjob.yaml # MongoDB backup CronJob
+        ├── backup-pvc.yaml     # Backup storage
+        ├── tests/
+        │   └── test-connection.yaml  # Helm test pod
         └── NOTES.txt           # Post-install notes
 ```
 
@@ -358,5 +385,5 @@ kubectl logs -l app.kubernetes.io/component=database -n genieacs
 2. **Generate secure JWT secret**: `openssl rand -hex 32`
 3. **Generate secure MongoDB password**: `openssl rand -base64 24`
 4. **Use NetworkPolicy** to restrict access
-5. **Enable TLS** with Ingress for production
+5. **Enable TLS** with Ingress for production -- use [cert-manager](https://cert-manager.io/) annotations (e.g., `cert-manager.io/cluster-issuer`) to automate certificate provisioning
 6. **Regular key rotation** for API key, JWT secret, and MongoDB password

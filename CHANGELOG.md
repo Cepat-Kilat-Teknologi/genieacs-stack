@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- GitHub Issue templates (bug report, feature request) with YAML-based forms
+- GitHub Pull Request template with checklist and change type classification
+- CODEOWNERS file for automatic PR review assignment
+- Helm chart tests (`helm test`) for both default and nbi-auth variants — verifies UI, NBI, and MongoDB connectivity
+- CI smoke test workflow — boots full stack with Docker Compose and verifies all endpoints
+- MongoDB backup CronJob template for Helm charts (optional, disabled by default)
+- Backup PVC template for persistent backup storage in Kubernetes
+- Ingress cert-manager annotation examples (cluster-issuer, ssl-redirect, proxy-body-size)
+- CWMP host example in Ingress values for TR-069 CPE device routing
+- Repository topics: cwmp, acs, iot, cpe, helm-chart, docker-compose, multi-arch, arm64, mongodb
+- GitHub Discussions enabled for community Q&A
+
+### Fixed
+- LICENSE file copyright placeholder `[yyyy] [name of copyright owner]` — GitHub now detects Apache-2.0 correctly
+
 ## [1.2.16] - 2026-04-04
 
 ### Fixed

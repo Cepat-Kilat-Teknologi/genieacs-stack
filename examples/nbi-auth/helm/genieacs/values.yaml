@@ -390,13 +390,77 @@ ingress:
   enabled: false
   className: ""
   annotations: {}
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # nginx.ingress.kubernetes.io/proxy-body-size: "50m"
   hosts: []
   #  - host: genieacs.example.com
   #    paths:
   #      - path: /
   #        pathType: Prefix
   #        port: 3000
+  #  - host: cwmp.example.com
+  #    paths:
+  #      - path: /
+  #        pathType: Prefix
+  #        port: 7547
   tls: []
   #  - secretName: genieacs-tls
   #    hosts:
   #      - genieacs.example.com
+  #      - cwmp.example.com
+
+# =============================================================================
+# MongoDB Backup CronJob
+# =============================================================================
+# Deploys a Kubernetes CronJob that runs mongodump on a schedule to create
+# timestamped backups of all MongoDB databases. Old backups are automatically
+# pruned after the configured retention period.
+#
+# The backup job authenticates using the same MongoDB credentials (either from
+# the chart-managed secret or mongodb.auth.existingSecret). Backup data is
+# stored on a dedicated PVC.
+#
+# Enable with:
+#   helm install genieacs ./genieacs --set backup.enabled=true
+backup:
+  # -- Set to true to deploy the backup CronJob and associated PVC.
+  enabled: false
+
+  # -- Cron schedule expression (default: daily at 2:00 AM UTC).
+  # Uses standard five-field cron syntax: minute hour day-of-month month day-of-week.
+  schedule: "0 2 * * *"
+
+  # -- Number of days to retain backups. Backups older than this are deleted
+  # automatically after each successful dump.
+  retention: 7
+
+  # -- Container image used for the backup job.
+  # Uses the same mongo image as the deployed database to ensure tool compatibility.
+  image:
+    repository: mongo
+    tag: "8.0"
+
+  # -- Resource requests and limits for the backup container.
+  # mongodump is CPU-light but can use significant memory for large databases.
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "256Mi"
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+  # -- Persistent storage for backup files.
+  # When persistence is disabled, an emptyDir volume is used and backups are
+  # lost when the job pod terminates (useful only for testing).
+  persistence:
+    enabled: true
+    # -- Storage size for the backup PVC. Size this based on your database size
+    # multiplied by the retention period (e.g., 1Gi DB x 7 days = 7Gi minimum).
+    size: 10Gi
+    # -- Storage class name. Leave empty ("") to use the cluster default.
+    storageClass: ""
+    # -- Access mode for the PVC. ReadWriteOnce is sufficient since only one
+    # backup job runs at a time (ConcurrencyPolicy: Forbid).
+    accessMode: ReadWriteOnce

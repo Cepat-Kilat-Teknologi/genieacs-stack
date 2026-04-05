@@ -1,0 +1,107 @@
+name: Bug Report
+description: Report a bug or unexpected behavior in the GenieACS Stack
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for taking the time to report a bug. Please fill out the form below so we can investigate and resolve the issue efficiently.
+
+  - type: dropdown
+    id: deployment-method
+    attributes:
+      label: Deployment Method
+      description: How are you deploying the GenieACS Stack?
+      options:
+        - Docker Compose
+        - Kubernetes / Kustomize
+        - Helm Chart
+        - ArgoCD
+    validations:
+      required: true
+
+  - type: input
+    id: genieacs-version
+    attributes:
+      label: GenieACS Version
+      description: Which version of GenieACS are you running?
+      placeholder: "1.2.16"
+      value: "1.2.16"
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Provide details about your environment.
+      placeholder: |
+        - OS: Ubuntu 22.04 / macOS 14 / etc.
+        - Docker version: 24.0.7
+        - Docker Compose version: 2.23.0
+        - Kubernetes version: 1.28.4
+        - Helm version: 3.13.0
+        - Node.js version (if applicable): 18.x
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: Provide a clear and concise description of the bug.
+      placeholder: Describe what went wrong.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: List the steps to reproduce the issue.
+      placeholder: |
+        1. Run `docker compose up -d`
+        2. Navigate to http://localhost:3000
+        3. ...
+        4. Observe the error
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected Behavior
+      description: What did you expect to happen?
+      placeholder: Describe the expected outcome.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual Behavior
+      description: What actually happened?
+      placeholder: Describe what happened instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Logs
+      description: |
+        Paste any relevant log output. This will be rendered as a code block automatically.
+        You can get container logs with `docker compose logs <service>` or `kubectl logs <pod>`.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context, screenshots, or configuration files that may help.
+    validations:
+      required: false

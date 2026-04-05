@@ -19,6 +19,11 @@
 
 - [ ] **ARMv7 variant** — Offer a Node.js 22 LTS-based image for 32-bit ARM devices (Raspberry Pi 3, older IoT gateways). Node.js 24 dropped ARMv7 to experimental tier.
 
+## CI/CD
+
+- [ ] **Helm chart unit tests (helm-unittest)** — Add unit test coverage for Helm template logic using the helm-unittest plugin. Validate conditional rendering, value overrides, and edge cases.
+
 ## Observability
 
 - [ ] **Grafana dashboard** — Pre-built dashboard for GenieACS metrics: active CPE connections, NBI request rates, CWMP inform counts, and MongoDB performance. Export as JSON for import into existing Grafana instances.
+- [ ] **PrometheusRule alerting** — Pre-built alerting rules for GenieACS: pod restarts, high memory, MongoDB connection failures, NBI error rate spikes. Template for Helm charts.

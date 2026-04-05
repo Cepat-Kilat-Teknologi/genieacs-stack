@@ -47,9 +47,12 @@ RUN apt-get update \
       supervisor ca-certificates logrotate curl \
  && rm -rf /var/lib/apt/lists/*
 
-# Copy the complete Node.js runtime and GenieACS installation from the build stage.
-# This includes the node binary, npm, and all GenieACS dependencies.
-COPY --from=build /usr/local /usr/local
+# Copy only the Node.js binary and the GenieACS installation from the build
+# stage.  npm/npx/corepack are intentionally excluded — they are not needed
+# at runtime (GenieACS is already installed) and removing them eliminates
+# CVEs in npm's bundled dependencies (tar, minimatch, picomatch, etc.)
+# that Trivy would otherwise flag.
+COPY --from=build /usr/local/bin/node /usr/local/bin/node
 COPY --from=build /opt/genieacs /opt/genieacs
 
 # Supervisor configuration — defines how the 4 GenieACS services are managed.

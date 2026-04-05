@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions & Discussion
+    url: https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/discussions
+    about: Ask questions, share ideas, or discuss the GenieACS Stack with the community. Please do not open issues for general questions.

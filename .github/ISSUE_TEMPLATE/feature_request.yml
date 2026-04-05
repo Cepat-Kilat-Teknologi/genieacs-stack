@@ -1,0 +1,74 @@
+name: Feature Request
+description: Suggest a new feature or improvement for the GenieACS Stack
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a feature. Please describe your idea so we can evaluate and prioritize it.
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature Description
+      description: Provide a clear and concise description of the feature you would like.
+      placeholder: Describe the feature.
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use Case / Motivation
+      description: |
+        Explain the problem this feature would solve or the use case it enables.
+        Why is this feature important to you or your deployment?
+      placeholder: Describe the use case or motivation behind this request.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: Proposed Solution
+      description: |
+        Describe how you envision this feature working. Include configuration examples,
+        architecture diagrams, or references to similar implementations if applicable.
+      placeholder: Describe your proposed solution.
+    validations:
+      required: false
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: |
+        Have you considered any alternative approaches or workarounds?
+        Describe them here so we understand the full picture.
+      placeholder: Describe any alternatives you have considered.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: deployment-scope
+    attributes:
+      label: Deployment Scope
+      description: Which deployment method(s) would this feature apply to?
+      multiple: true
+      options:
+        - Docker Compose
+        - Kubernetes / Kustomize
+        - Helm Chart
+        - ArgoCD
+        - All deployment methods
+    validations:
+      required: false
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: Additional Context
+      description: Any other context, references, or screenshots related to this feature request.
+    validations:
+      required: false

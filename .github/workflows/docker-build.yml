@@ -159,12 +159,16 @@ jobs:
           sbom: true          # Embeds a Software Bill of Materials (SBOM)
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # GHA cache is always available.  The GHCR registry cache requires
+          # authentication, which is only configured on non-PR events (fork PRs
+          # lack access to repository secrets).  Omitting it on PRs avoids the
+          # "401 Unauthorized" error from ghcr.io/token.
           cache-from: |
             type=gha
-            type=registry,ref=${{ env.GHCR_IMAGE }}:buildcache
+            ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}:buildcache', env.GHCR_IMAGE) || '' }}
           cache-to: |
             type=gha,mode=max
-            type=registry,ref=${{ env.GHCR_IMAGE }}:buildcache,mode=max
+            ${{ github.event_name != 'pull_request' && format('type=registry,ref={0}:buildcache,mode=max', env.GHCR_IMAGE) || '' }}
 
       # ---------------------------------------------------------------
       # Attestations create a signed, tamper-evident record that links

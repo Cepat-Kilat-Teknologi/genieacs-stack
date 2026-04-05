@@ -20,8 +20,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository topics: cwmp, acs, iot, cpe, helm-chart, docker-compose, multi-arch, arm64, mongodb
 - GitHub Discussions enabled for community Q&A
 
+### Security
+- Removed npm/npx/corepack from runtime image — eliminates 5 CVEs in npm bundled deps (tar, minimatch, picomatch)
+
 ### Fixed
 - LICENSE file copyright placeholder `[yyyy] [name of copyright owner]` — GitHub now detects Apache-2.0 correctly
+- CI docker-build GHCR registry cache 401 on PRs — cache-from/cache-to now conditional on non-PR events
 
 ## [1.2.16] - 2026-04-04
 

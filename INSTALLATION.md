@@ -18,6 +18,8 @@ Complete installation guide for GenieACS Stack. Choose the deployment method tha
 - [ArgoCD (GitOps)](#argocd-gitops)
 - [Post-Installation](#post-installation)
 - [Verification](#verification)
+- [MongoDB Backup](#mongodb-backup)
+- [TLS/Ingress with cert-manager](#tlsingress-with-cert-manager)
 
 ---
 
@@ -374,6 +376,14 @@ mongodb:
 
 > **Note:** When using `existingSecret`, the secret must contain the key `GENIEACS_UI_JWT_SECRET`.
 
+#### Verify Installation
+
+Run Helm tests to verify connectivity:
+```bash
+helm test genieacs -n genieacs
+```
+This verifies GenieACS UI, NBI API, and MongoDB connectivity.
+
 ### Helm NBI Auth
 
 ```bash
@@ -443,6 +453,14 @@ helm install genieacs genieacs/genieacs-nbi-auth \
 ```
 
 > **Note:** The `nbiAuth.apiKey` is embedded in nginx ConfigMap. For JWT secret, use `existingSecret` in production.
+
+#### Verify Installation
+
+Run Helm tests to verify connectivity:
+```bash
+helm test genieacs -n genieacs
+```
+This verifies GenieACS UI, NBI API, and MongoDB connectivity.
 
 ### Helm Commands Reference
 
@@ -597,6 +615,82 @@ docker compose logs -f genieacs
 #### Kubernetes / Helm
 ```bash
 kubectl logs -f -l app.kubernetes.io/name=genieacs -n genieacs
+```
+
+---
+
+## MongoDB Backup
+
+Enable automated MongoDB backups via the Helm chart's built-in CronJob support.
+
+### Enable Backup CronJob
+
+```bash
+helm install genieacs genieacs/genieacs \
+  --namespace genieacs \
+  --create-namespace \
+  --set backup.enabled=true \
+  --set backup.schedule="0 2 * * *" \
+  --set backup.retention=7
+```
+
+This creates a Kubernetes CronJob that runs `mongodump` daily at 2:00 AM and retains the last 7 backups.
+
+### Check Backup Status
+
+```bash
+kubectl get cronjob -n genieacs
+```
+
+### Trigger a Manual Backup
+
+```bash
+kubectl create job --from=cronjob/<backup-cronjob-name> manual-backup -n genieacs
+```
+
+Replace `<backup-cronjob-name>` with the actual CronJob name shown in `kubectl get cronjob` output.
+
+---
+
+## TLS/Ingress with cert-manager
+
+Enable TLS-terminated Ingress using cert-manager for automatic certificate provisioning.
+
+### Prerequisites
+
+- An Ingress controller installed (e.g., ingress-nginx)
+- cert-manager installed with a configured `ClusterIssuer` (e.g., `letsencrypt-prod`)
+
+### Enable Ingress with TLS
+
+```bash
+helm install genieacs genieacs/genieacs \
+  --namespace genieacs \
+  --create-namespace \
+  --set ingress.enabled=true \
+  --set ingress.className=nginx \
+  --set 'ingress.annotations.cert-manager\.io/cluster-issuer=letsencrypt-prod' \
+  --set 'ingress.hosts[0].host=genieacs.example.com' \
+  --set 'ingress.hosts[0].paths[0].path=/' \
+  --set 'ingress.hosts[0].paths[0].pathType=Prefix' \
+  --set 'ingress.hosts[0].paths[0].port=3000' \
+  --set 'ingress.tls[0].secretName=genieacs-tls' \
+  --set 'ingress.tls[0].hosts[0]=genieacs.example.com'
+```
+
+Replace `genieacs.example.com` with your actual domain. The `port=3000` routes traffic to the GenieACS Web UI. To expose additional services (NBI API, CWMP, File Server), add more path entries or create separate Ingress resources.
+
+### Verify Certificate
+
+```bash
+# Check Ingress resource
+kubectl get ingress -n genieacs
+
+# Check certificate status
+kubectl get certificate -n genieacs
+
+# Verify TLS is working
+curl -v https://genieacs.example.com/
 ```
 
 ---

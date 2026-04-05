@@ -172,6 +172,8 @@ docker cp ./backup mongo-genieacs:/data/db/backup
 docker exec mongo-genieacs mongorestore /data/db/backup
 ```
 
+> For automated daily backups in Kubernetes/Helm deployments, enable the backup CronJob with `backup.enabled=true`. See the [Helm chart documentation](../helm/README.md) for details.
+
 ### Backup Volumes
 
 ```bash

@@ -2,6 +2,7 @@
 
 [![ci](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/docker-build.yml/badge.svg?branch=main)](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/docker-build.yml)
 [![Helm](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/helm-release.yml/badge.svg)](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/helm-release.yml)
+[![Smoke Test](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/smoke-test.yml/badge.svg)](https://github.com/Cepat-Kilat-Teknologi/genieacs-stack/actions/workflows/smoke-test.yml)
 ![GenieACS](https://img.shields.io/badge/GenieACS-1.2.16-orange?style=flat-square)
 ![MongoDB](https://img.shields.io/badge/MongoDB-8.0-green?style=flat-square)
 ![Multi-Arch](https://img.shields.io/badge/multi--arch-amd64%2Carm64-lightgrey?style=flat-square)
@@ -17,8 +18,11 @@ Complete deployment stack for [GenieACS](https://genieacs.com) v1.2.16 with Mong
 - **MongoDB Authentication** - Secure database access with username/password
 - **Multi-architecture** - amd64, arm64 support
 - **Note:** ARMv7 (32-bit ARM) is not supported — Node.js 24 dropped official ARMv7 binaries
+- **Helm Chart Tests** - Post-install verification via `helm test`
+- **MongoDB Backup CronJob** - Optional scheduled backups (Helm)
+- **Cert-manager Ingress** - TLS termination with cert-manager examples
 - **Production Ready** - NetworkPolicy isolation, health monitoring, log rotation, data persistence
-- **CI/CD** - Multi-arch build, Trivy scanning, cosign signing, Helm OCI push, Dependabot
+- **CI/CD** - Multi-arch build, Trivy scanning, cosign signing, Helm OCI push, Dependabot, smoke test workflow
 
 ## Architecture
 
@@ -130,10 +134,17 @@ kubectl apply -k .
 ├── docker-compose.yml         # Local development orchestration
 ├── .env.example               # Environment template
 ├── .github/
+│   ├── CODEOWNERS             # Code ownership rules
+│   ├── ISSUE_TEMPLATE/
+│   │   ├── bug_report.yml     # Bug report template
+│   │   ├── feature_request.yml # Feature request template
+│   │   └── config.yml         # Issue template chooser config
+│   ├── pull_request_template.md # PR description template
 │   ├── workflows/
 │   │   ├── docker-build.yml   # Multi-arch image build + push
 │   │   ├── helm-release.yml   # Helm chart packaging + OCI push
 │   │   ├── security.yml       # Trivy vulnerability scanning
+│   │   ├── smoke-test.yml     # Docker Compose stack smoke test
 │   │   ├── validate-manifests.yml  # kubeconform validation
 │   │   └── release.yml        # Version propagation automation
 │   └── dependabot.yml         # Automated dependency updates
@@ -141,10 +152,18 @@ kubectl apply -k .
 │   ├── default/               # Default variant
 │   │   ├── docker/
 │   │   ├── helm/
+│   │   │   └── genieacs/templates/
+│   │   │       ├── tests/     #   Helm chart tests (helm test)
+│   │   │       ├── backup-cronjob.yaml  # Optional MongoDB backup CronJob
+│   │   │       └── backup-pvc.yaml      # Backup PVC
 │   │   └── kubernetes/        #   Kustomize manifests
 │   ├── nbi-auth/              # NBI API auth variant
 │   │   ├── docker/
 │   │   ├── helm/
+│   │   │   └── genieacs/templates/
+│   │   │       ├── tests/     #   Helm chart tests (helm test)
+│   │   │       ├── backup-cronjob.yaml  # Optional MongoDB backup CronJob
+│   │   │       └── backup-pvc.yaml      # Backup PVC
 │   │   └── kubernetes/        #   Kustomize manifests
 │   └── argocd/                # ArgoCD application manifests
 ├── config/                    # supervisord configuration
@@ -171,6 +190,9 @@ make helm-template # Render Helm templates to stdout
 make buildx-load   # Build image for local arch
 make scan          # CVE scan with Docker Scout
 make stats         # Container resource usage
+
+# Helm chart tests (run after install)
+helm test genieacs -n genieacs
 ```
 
 ## Links

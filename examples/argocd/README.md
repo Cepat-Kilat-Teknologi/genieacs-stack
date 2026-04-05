@@ -152,6 +152,39 @@ spec:
               storageClassName: "fast-ssd"
 ```
 
+### Enabling Backups and Ingress
+
+You can enable automated MongoDB backups and Ingress with TLS in the Application manifest:
+
+```yaml
+spec:
+  source:
+    helm:
+      values: |
+        # Optional: Enable automated MongoDB backups
+        backup:
+          enabled: true
+          schedule: "0 2 * * *"
+          retention: 7
+
+        # Optional: Enable Ingress with TLS
+        ingress:
+          enabled: true
+          className: nginx
+          annotations:
+            cert-manager.io/cluster-issuer: "letsencrypt-prod"
+          hosts:
+            - host: genieacs.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+                  port: 3000
+          tls:
+            - secretName: genieacs-tls
+              hosts:
+                - genieacs.example.com
+```
+
 ### Using Sealed Secrets
 
 For production, use Sealed Secrets or external secret management:

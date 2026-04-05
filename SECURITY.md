@@ -31,6 +31,7 @@ GenieACS Stack includes several security features:
 | Volume Isolation | `fsGroup` ensures proper volume ownership without root access at runtime |
 | NetworkPolicy | MongoDB access restricted to GenieACS pods only |
 | Secrets in K8s Secrets | Credentials stored in Secrets, not ConfigMaps |
+| Minimal Runtime Image | npm/npx removed from production image, only node binary |
 | CI Vulnerability Scanning | Trivy scans on push and weekly schedule |
 | Image Signing | Cosign keyless signing via Sigstore |
 | No Default Credentials | All secrets must be configured before deployment |
@@ -385,13 +386,21 @@ services:
       - no-new-privileges:true
 ```
 
+### Minimal Runtime Image
+
+The runtime Docker image only contains the `node` binary — npm, npx, and corepack are excluded. This reduces the attack surface by eliminating npm's bundled dependencies (such as `tar`, `minimatch`, and `picomatch`) which had known CVEs.
+
+The multi-stage build installs GenieACS with npm in the build stage, then copies only the node binary and the installed application to the runtime stage. No package manager is available in the final image.
+
 ### Image Security
 
 - Base image: `debian:bookworm-slim` (minimal attack surface)
 - No unnecessary packages (`wget`, `iputils-ping`, build tools removed)
+- npm/npx/corepack removed from runtime image (installed only in build stage)
 - Trivy scanning in CI (weekly + on push)
 - Cosign image signing (keyless Sigstore)
 - Dependabot monitors base image and GitHub Actions updates
+- CI smoke test workflow validates full stack startup on every PR
 
 **Scan images for vulnerabilities:**
 
@@ -427,6 +436,12 @@ make scan
 - [ ] Use TLS/HTTPS for all external traffic
 - [ ] Consider NetworkPolicy for Kubernetes
 - [ ] Don't expose MongoDB externally
+
+### Kubernetes / Helm
+
+- [ ] Enable MongoDB backup CronJob (`backup.enabled=true`)
+- [ ] Configure Ingress with TLS via cert-manager
+- [ ] Run `helm test` after installation to verify connectivity
 
 ### Operational Security
 

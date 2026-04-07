@@ -215,9 +215,9 @@ sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO
 
 # Update configmap with MongoDB credentials
 # macOS:
-sed -i '' "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
+sed -i '' "s|mongodb://admin:REPLACE_ME--openssl-rand-base64-24@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
 # Linux:
-# sed -i "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
+# sed -i "s|mongodb://admin:REPLACE_ME--openssl-rand-base64-24@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
 
 # IMPORTANT: Save these values securely!
 echo "JWT_SECRET: $JWT_SECRET"
@@ -261,15 +261,15 @@ sed -i '' "s/MONGO_INITDB_ROOT_PASSWORD: .*/MONGO_INITDB_ROOT_PASSWORD: \"$MONGO
 
 # Update configmap with MongoDB credentials
 # macOS:
-sed -i '' "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
+sed -i '' "s|mongodb://admin:REPLACE_ME--openssl-rand-base64-24@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
 # Linux:
-# sed -i "s|mongodb://admin:changeme-generate-secure-password@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
+# sed -i "s|mongodb://admin:REPLACE_ME--openssl-rand-base64-24@|mongodb://admin:$MONGO_PASSWORD@|" configmap.yaml
 
 # Update nginx NBI auth config with API key
 # macOS:
-sed -i '' "s/changeme-generate-with-openssl-rand-hex-32/$API_KEY/" nginx-nbi-auth.yaml
+sed -i '' "s/REPLACE_ME--openssl-rand-hex-32/$API_KEY/" nginx-nbi-auth.yaml
 # Linux:
-# sed -i "s/changeme-generate-with-openssl-rand-hex-32/$API_KEY/" nginx-nbi-auth.yaml
+# sed -i "s/REPLACE_ME--openssl-rand-hex-32/$API_KEY/" nginx-nbi-auth.yaml
 
 # IMPORTANT: Save these values securely!
 echo "JWT_SECRET: $JWT_SECRET"

@@ -9,7 +9,7 @@ metadata:
 data:
   # MongoDB connection (update credentials to match mongodb-secret.yaml)
   # Format: mongodb://username:password@host:port/database?authSource=admin
-  GENIEACS_MONGODB_CONNECTION_URL: "mongodb://admin:changeme-generate-secure-password@mongodb:27017/genieacs?authSource=admin"
+  GENIEACS_MONGODB_CONNECTION_URL: "mongodb://admin:REPLACE_ME--openssl-rand-base64-24@mongodb:27017/genieacs?authSource=admin"
 
   # Authentication settings
   GENIEACS_UI_AUTH: "true"

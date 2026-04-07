@@ -78,7 +78,7 @@ help:
 # ---------------------------------------------------------------------------
 # One-time initialization: creates required directories and a .env file from
 # the example template. If .env already exists, it scans for well-known
-# placeholder strings (e.g., "changeme", "your-super-secret") to warn the
+# placeholder strings (e.g., "REPLACE_ME", "your-super-secret") to warn the
 # operator that default secrets have not been replaced yet. This prevents
 # accidentally running services with insecure credentials.
 setup:
@@ -92,7 +92,7 @@ setup:
 		echo "   Generate secrets with: openssl rand -hex 32"; \
 	else \
 		echo ".env already exists"; \
-		if grep -qE 'changeme|change-me|change-this|your-super-secret|YOUR_PASSWORD_HERE' .env 2>/dev/null; then \
+		if grep -qE 'REPLACE_ME|changeme|change-me|change-this|your-super-secret|YOUR_PASSWORD_HERE' .env 2>/dev/null; then \
 			echo ""; \
 			echo "⚠  WARNING: .env contains placeholder values!"; \
 			echo "   Edit .env and replace all placeholder secrets before running services."; \

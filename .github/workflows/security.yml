@@ -63,7 +63,7 @@ jobs:
       #   to enforce a security gate before merging.
       # ---------------------------------------------------------------
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: 'genieacs-scan:latest'
           format: 'sarif'
@@ -90,7 +90,7 @@ jobs:
       #   - Config scan -> checks source files for bad practices.
       # ---------------------------------------------------------------
       - name: Run Trivy config scanner
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           scan-type: 'config'
           scan-ref: '.'

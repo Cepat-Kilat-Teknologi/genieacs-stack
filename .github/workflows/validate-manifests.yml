@@ -46,9 +46,15 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Install kubeconform
+        env:
+          KUBECONFORM_VERSION: "0.7.0"
         run: |
-          curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
+          curl -sL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" -o kubeconform.tar.gz
+          curl -sL "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/CHECKSUMS" -o CHECKSUMS
+          grep "kubeconform-linux-amd64.tar.gz" CHECKSUMS | sha256sum -c -
+          tar xzf kubeconform.tar.gz kubeconform
           sudo mv kubeconform /usr/local/bin/
+          rm -f kubeconform.tar.gz CHECKSUMS
 
       # ---------------------------------------------------------------
       # Raw YAML validation: these manifests are used directly with

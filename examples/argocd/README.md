@@ -33,9 +33,9 @@ echo "MongoDB Password: $MONGO_PASSWORD"
 ```
 
 Edit the YAML file and replace the placeholder values:
-- `jwtSecret: "changeme-generate-with-openssl-rand-hex-32"`
-- `apiKey: "changeme-generate-with-openssl-rand-hex-32"` (nbi-auth only)
-- `mongodb.auth.rootPassword: "changeme-generate-secure-password"`
+- `jwtSecret: "REPLACE_ME--openssl-rand-hex-32"`
+- `apiKey: "REPLACE_ME--openssl-rand-hex-32"` (nbi-auth only)
+- `mongodb.auth.rootPassword: "REPLACE_ME--openssl-rand-base64-24"`
 
 ### 2. Configure Destination Cluster
 

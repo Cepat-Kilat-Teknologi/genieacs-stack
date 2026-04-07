@@ -47,9 +47,11 @@ jobs:
 
       # Git identity is needed for the automated commit to gh-pages later.
       - name: Configure Git
+        env:
+          GIT_ACTOR: ${{ github.actor }}
         run: |
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --local user.name "$GIT_ACTOR"
+          git config --local user.email "${GIT_ACTOR}@users.noreply.github.com"
 
       - name: Install Helm
         uses: azure/setup-helm@v5
@@ -109,6 +111,8 @@ jobs:
           path: gh-pages
 
       - name: Update Helm Repository
+        env:
+          GIT_ACTOR: ${{ github.actor }}
         run: |
           # Copy new packages to gh-pages
           cp .helm-packages/*.tgz gh-pages/
@@ -116,8 +120,8 @@ jobs:
           cd gh-pages
 
           # Configure git for gh-pages directory
-          git config user.name "${{ github.actor }}"
-          git config user.email "${{ github.actor }}@users.noreply.github.com"
+          git config --local user.name "$GIT_ACTOR"
+          git config --local user.email "${GIT_ACTOR}@users.noreply.github.com"
 
           # Regenerate index.yaml to include the newly added chart versions.
           # The --url flag sets the download base URL that Helm clients use.

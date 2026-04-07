@@ -5,3 +5,10 @@ metadata:
   labels:
     app.kubernetes.io/name: genieacs
     app.kubernetes.io/component: namespace
+    # Pod Security Standards (PSS) — enforces security baselines at the namespace level.
+    # "baseline" blocks known privilege escalations (hostNetwork, privileged containers, etc.)
+    # "restricted" in audit/warn mode logs violations without blocking, useful for
+    # identifying pods that could be hardened further.
+    pod-security.kubernetes.io/enforce: baseline
+    pod-security.kubernetes.io/audit: restricted
+    pod-security.kubernetes.io/warn: restricted

@@ -130,7 +130,7 @@ genieacs:
   initContainers:
     busybox:
       image: busybox
-      tag: "1.37"
+      tag: "1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e"
 
 # =============================================================================
 # NBI Authentication Proxy (nginx sidecar)
@@ -162,7 +162,7 @@ nbiAuth:
 
   # API Key for NBI authentication (ignored if existingSecret is set)
   # Generate with: openssl rand -hex 32
-  apiKey: "changeme-generate-with-openssl-rand-hex-32"
+  apiKey: "REPLACE_ME--openssl-rand-hex-32"
 
   # -- Internal port that the nginx proxy listens on inside the pod.
   # This must differ from the GenieACS NBI port (7557) to avoid conflicts.
@@ -210,7 +210,7 @@ secret:
 
   # JWT secret for UI authentication (ignored if existingSecret is set)
   # Generate with: openssl rand -hex 32
-  jwtSecret: "changeme-generate-with-openssl-rand-hex-32"
+  jwtSecret: "REPLACE_ME--openssl-rand-hex-32"
 
 # =============================================================================
 # MongoDB Configuration
@@ -242,7 +242,7 @@ mongodb:
     rootUsername: "admin"
     # Root password (ignored if existingSecret is set)
     # Generate with: openssl rand -base64 24
-    rootPassword: "changeme-generate-secure-password"
+    rootPassword: "REPLACE_ME--openssl-rand-base64-24"
 
   # -- MongoDB service configuration
   # ClusterIP is the default because MongoDB should only be accessed by

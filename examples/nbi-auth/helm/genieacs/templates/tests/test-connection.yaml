@@ -18,7 +18,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: test-genieacs-ui
-      image: busybox:1.37
+      image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
       command:
         - sh
         - -c
@@ -29,7 +29,7 @@ spec:
             && echo "PASS: GenieACS UI is reachable" \
             || (echo "FAIL: GenieACS UI is not reachable" && exit 1)
     - name: test-genieacs-nbi
-      image: busybox:1.37
+      image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
       command:
         - sh
         - -c
@@ -54,7 +54,7 @@ spec:
           {{- end }}
     {{- if .Values.nbiAuth.enabled }}
     - name: test-nbi-auth-with-key
-      image: busybox:1.37
+      image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
       env:
         - name: NBI_API_KEY
           valueFrom:
@@ -82,7 +82,7 @@ spec:
           fi
     {{- end }}
     - name: test-mongodb
-      image: busybox:1.37
+      image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
       command:
         - sh
         - -c

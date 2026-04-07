@@ -39,7 +39,7 @@ spec:
           # NBI port routes through nginx auth proxy; unauthenticated request should return 401
           HTTP_CODE=$(wget -q -O /dev/null --server-response --timeout=10 \
             http://{{ include "genieacs.fullname" . }}:{{ .Values.genieacs.service.ports.nbi }}/devices 2>&1 \
-            | awk '/HTTP\//{print $2}' | tail -1)
+            | awk '/^  HTTP\//{print $2}' | head -1)
           if [ "$HTTP_CODE" = "401" ]; then
             echo "PASS: NBI auth proxy returned 401 for unauthenticated request"
           else
@@ -73,7 +73,7 @@ spec:
           HTTP_CODE=$(wget -q -O /dev/null --server-response --timeout=10 \
             --header="X-API-Key: $NBI_API_KEY" \
             http://{{ include "genieacs.fullname" . }}:{{ .Values.genieacs.service.ports.nbi }}/devices 2>&1 \
-            | awk '/HTTP\//{print $2}' | tail -1)
+            | awk '/^  HTTP\//{print $2}' | head -1)
           if [ "$HTTP_CODE" = "200" ]; then
             echo "PASS: NBI auth proxy returned 200 with valid API key"
           else

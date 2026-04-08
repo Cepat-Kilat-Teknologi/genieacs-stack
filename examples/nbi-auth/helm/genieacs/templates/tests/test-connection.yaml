@@ -18,7 +18,7 @@ spec:
   restartPolicy: Never
   containers:
     - name: test-genieacs-ui
-      image: busybox:1.37
+      image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
       command:
         - sh
         - -c
@@ -29,7 +29,7 @@ spec:
             && echo "PASS: GenieACS UI is reachable" \
             || (echo "FAIL: GenieACS UI is not reachable" && exit 1)
     - name: test-genieacs-nbi
-      image: busybox:1.37
+      image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
       command:
         - sh
         - -c
@@ -39,7 +39,7 @@ spec:
           # NBI port routes through nginx auth proxy; unauthenticated request should return 401
           HTTP_CODE=$(wget -q -O /dev/null --server-response --timeout=10 \
             http://{{ include "genieacs.fullname" . }}:{{ .Values.genieacs.service.ports.nbi }}/devices 2>&1 \
-            | awk '/HTTP\//{print $2}' | tail -1)
+            | awk '/^  HTTP\//{print $2}' | head -1)
           if [ "$HTTP_CODE" = "401" ]; then
             echo "PASS: NBI auth proxy returned 401 for unauthenticated request"
           else
@@ -54,7 +54,7 @@ spec:
           {{- end }}
     {{- if .Values.nbiAuth.enabled }}
     - name: test-nbi-auth-with-key
-      image: busybox:1.37
+      image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
       env:
         - name: NBI_API_KEY
           valueFrom:
@@ -73,7 +73,7 @@ spec:
           HTTP_CODE=$(wget -q -O /dev/null --server-response --timeout=10 \
             --header="X-API-Key: $NBI_API_KEY" \
             http://{{ include "genieacs.fullname" . }}:{{ .Values.genieacs.service.ports.nbi }}/devices 2>&1 \
-            | awk '/HTTP\//{print $2}' | tail -1)
+            | awk '/^  HTTP\//{print $2}' | head -1)
           if [ "$HTTP_CODE" = "200" ]; then
             echo "PASS: NBI auth proxy returned 200 with valid API key"
           else
@@ -82,7 +82,7 @@ spec:
           fi
     {{- end }}
     - name: test-mongodb
-      image: busybox:1.37
+      image: busybox:1.37@sha256:1487d0af5f52b4ba31c7e465126ee2123fe3f2305d638e7827681e7cf6c83d5e
       command:
         - sh
         - -c

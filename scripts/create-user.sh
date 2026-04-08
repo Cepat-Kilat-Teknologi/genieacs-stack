@@ -123,23 +123,27 @@ fi
 # record instead of failing with a duplicate key error.
 echo "Inserting user into MongoDB..."
 
-RESULT=$(docker exec "$MONGO_CONTAINER" mongosh --quiet "$MONGO_URI" --eval "
-const user = {
-    _id: '$USERNAME',
-    password: '$HASH',
-    salt: '$SALT',
-    roles: '$ROLE'
-};
+# Build a JSON document with properly escaped values using jq, then pass it
+# to mongosh via EJSON.parse(). This prevents JavaScript injection through
+# crafted usernames or other fields — values are never interpolated into code.
+USER_JSON=$(jq -n \
+    --arg id "$USERNAME" \
+    --arg pw "$HASH" \
+    --arg sa "$SALT" \
+    --arg ro "$ROLE" \
+    '{_id: $id, password: $pw, salt: $sa, roles: $ro}')
 
-const existing = db.users.findOne({_id: '$USERNAME'});
+RESULT=$(docker exec -e USER_DOC="$USER_JSON" "$MONGO_CONTAINER" mongosh --quiet "$MONGO_URI" --eval '
+const user = JSON.parse(process.env.USER_DOC);
+const existing = db.users.findOne({_id: user._id});
 if (existing) {
-    db.users.updateOne({_id: '$USERNAME'}, {\$set: user});
-    print('updated');
+    db.users.updateOne({_id: user._id}, {$set: user});
+    print("updated");
 } else {
     db.users.insertOne(user);
-    print('created');
+    print("created");
 }
-")
+')
 
 if [[ "$RESULT" != *"created"* ]] && [[ "$RESULT" != *"updated"* ]]; then
     echo -e "${RED}Error creating user: $RESULT${NC}"

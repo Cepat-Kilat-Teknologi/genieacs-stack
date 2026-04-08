@@ -1,4 +1,14 @@
 # Nginx ConfigMap for NBI API Key Auth
+#
+# !! REQUIRED: Replace the API key placeholder before deployment !!
+#
+# The API key below MUST be replaced with a strong random value:
+#   openssl rand -hex 32
+#
+# For better security, store the API key in a Kubernetes Secret and use
+# an init container with envsubst to inject it at pod startup. See the
+# Helm chart variant (examples/nbi-auth/helm/) for a production-ready
+# implementation with existingSecret support.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -29,9 +39,9 @@ data:
 
             location / {
                 # Validate X-API-Key header
-                # IMPORTANT: Change this API key before deployment!
+                # !! REPLACE this value before deployment !!
                 # Generate with: openssl rand -hex 32
-                if ($http_x_api_key != "changeme-generate-with-openssl-rand-hex-32") {
+                if ($http_x_api_key != "REPLACE_ME--openssl-rand-hex-32") {
                     return 401 "Invalid or missing X-API-Key";
                 }
 

@@ -7,6 +7,62 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (v1.3.0 in progress — ISP SaaS preset bundle)
 
+### Added — ZTE F670L WAN PON optical paths (session 5i)
+
+After real-lab verification against a ZTE F670L (V9.0.10P1N12A), the
+preset bundle now declares 6 additional retention paths under
+`InternetGatewayDevice.WANDevice.1.X_ZTE-COM_WANPONInterfaceConfig.*`.
+These feed the **genieacs-relay v2.2.0 optical handler's new F670L
+extractor** (see genieacs-relay CHANGELOG session 5i). Without these
+entries the optical endpoint returns `404 OPTICAL_NOT_SUPPORTED` on
+F670L because GenieACS only fetches subtrees declared in an active
+preset; the F670L does not expose the five existing `X_CT-COM_*` /
+`X_HW_DEBUG` / `X_Realtek_*` / `Device.Optical.*` trees that older
+vendor extractors rely on.
+
+New entries (`type=age`, age 300s):
+- `...X_ZTE-COM_WANPONInterfaceConfig.TXPower`
+- `...X_ZTE-COM_WANPONInterfaceConfig.RXPower`
+- `...X_ZTE-COM_WANPONInterfaceConfig.BiasCurrent`
+- `...X_ZTE-COM_WANPONInterfaceConfig.TransceiverTemperature`
+- `...X_ZTE-COM_WANPONInterfaceConfig.SupplyVoltage` (millivolts — the
+  relay normalizes `>100` raw to volts automatically)
+- `...X_ZTE-COM_WANPONInterfaceConfig.Status`
+
+Real-lab verification via genieacs-relay `GET /optical/{ip}`:
+TX 2.59 dBm, RX -25.08 dBm, bias 13.7 mA, temp 35.31°C, V 3.244,
+source `zte_wan_pon_interface`.
+
+### Known issue — stock `inform` provision atomic rollback on ZTE
+
+**Not caused by this preset, but surfaced during the same lab session.**
+GenieACS's built-in `/init` bootstrap creates an `inform` provision
+that writes `PeriodicInformTime` as numeric ms-since-epoch via
+`declare(... {value: informTime})`. ZTE F670L (and likely other ZTE
+OEM firmware lines) expects `xsd:dateTime` ISO 8601 and rejects the
+numeric with fault `9007 Invalid parameter value`. Because TR-069
+`setParameterValues` is atomic, this rejection rolls back **every
+sibling write in the same call** — including
+`ConnectionRequestUsername` / `ConnectionRequestPassword`. The CPE
+then holds stale credentials, GenieACS's side of the handshake
+drifts, and live `?connection_request` calls fail with HTTP 401
+Digest errors. Symptom: reboot / wake endpoints in the relay
+succeed at the API layer (202 task enqueued) but the CPE never
+receives the task because GenieACS can't authenticate to its
+ConnectionRequestURL.
+
+**Mitigation (applied live in the session 5i lab mongo, not yet
+file-level)**: patch the `inform` provision in mongo to drop the
+`PeriodicInformTime` declares. Leaves `PeriodicInformEnable` /
+`PeriodicInformInterval` intact.
+
+**To ship as permanent fix in v1.3.1** (tracked):
+- Option A: extend `scripts/create-user.sh` with a post-`/init`
+  step that rewrites the `inform` provision via mongosh.
+- Option B: ship an override provision at a higher `weight` that
+  runs after the stock `inform` and short-circuits the bad declare.
+- Option C: upstream PR to GenieACS itself.
+
 ### Added — Preset bundle companion to genieacs-relay v2.2.0
 
 - **`examples/default/presets/isp-saas-default.json`** — declarative

@@ -28,6 +28,13 @@
     {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.AssociatedDevice.*.SignalStrength",                     "age": 60},
     {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.AssociatedDevice.*.AssociatedDeviceAuthenticationState", "age": 60},
 
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.X_ZTE-COM_WANPONInterfaceConfig.TXPower",                "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.X_ZTE-COM_WANPONInterfaceConfig.RXPower",                "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.X_ZTE-COM_WANPONInterfaceConfig.BiasCurrent",            "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.X_ZTE-COM_WANPONInterfaceConfig.TransceiverTemperature", "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.X_ZTE-COM_WANPONInterfaceConfig.SupplyVoltage",          "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.X_ZTE-COM_WANPONInterfaceConfig.Status",                 "age": 300},
+
     {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.Channel",        "age": 300},
     {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.TransmitPower",  "age": 300},
     {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.X_TXPower",      "age": 300},

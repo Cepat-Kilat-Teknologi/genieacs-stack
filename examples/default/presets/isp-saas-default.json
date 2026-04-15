@@ -1,0 +1,69 @@
+{
+  "_id": "isp-saas-default",
+  "channel": "default",
+  "weight": 0,
+  "precondition": "",
+  "events": {},
+  "configurations": [
+    {"type": "age", "name": "InternetGatewayDevice.DeviceInfo.UpTime",            "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.DeviceInfo.Manufacturer",      "age": 86400},
+    {"type": "age", "name": "InternetGatewayDevice.DeviceInfo.ModelName",         "age": 86400},
+    {"type": "age", "name": "InternetGatewayDevice.DeviceInfo.SoftwareVersion",   "age": 3600},
+    {"type": "age", "name": "InternetGatewayDevice.DeviceInfo.HardwareVersion",   "age": 86400},
+    {"type": "age", "name": "InternetGatewayDevice.DeviceInfo.SerialNumber",      "age": 86400},
+
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.ConnectionStatus",    "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.ExternalIPAddress",   "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Username",            "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.Uptime",              "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANPPPConnection.1.LastConnectionError", "age": 60},
+
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ConnectionStatus",  "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.ExternalIPAddress", "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.Uptime",            "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.AddressingType",    "age": 3600},
+
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.AssociatedDevice.*.AssociatedDeviceMACAddress",         "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.AssociatedDevice.*.X_SignalStrength",                   "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.AssociatedDevice.*.SignalStrength",                     "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.AssociatedDevice.*.AssociatedDeviceAuthenticationState", "age": 60},
+
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.Channel",        "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.TransmitPower",  "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.X_TXPower",      "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.Stats.TotalBytesSent",        "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.Stats.TotalBytesReceived",    "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.Stats.TotalPacketsSent",      "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.Stats.TotalPacketsReceived",  "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.Stats.ErrorsSent",            "age": 60},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.Stats.ErrorsReceived",        "age": 60},
+
+    {"type": "age", "name": "InternetGatewayDevice.IPPingDiagnostics.DiagnosticsState",      "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.IPPingDiagnostics.SuccessCount",          "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.IPPingDiagnostics.FailureCount",          "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.IPPingDiagnostics.AverageResponseTime",   "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.IPPingDiagnostics.MinimumResponseTime",   "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.IPPingDiagnostics.MaximumResponseTime",   "age": 30},
+
+    {"type": "age", "name": "InternetGatewayDevice.TraceRouteDiagnostics.DiagnosticsState",            "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.TraceRouteDiagnostics.ResponseTime",                "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.TraceRouteDiagnostics.RouteHopsNumberOfEntries",    "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.TraceRouteDiagnostics.RouteHops.*.HostAddress",     "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.TraceRouteDiagnostics.RouteHops.*.HopHostAddressType", "age": 30},
+    {"type": "age", "name": "InternetGatewayDevice.TraceRouteDiagnostics.RouteHops.*.HopRTTimes",      "age": 30},
+
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.WLANAccessControlMode",             "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.WLANConfiguration.*.WLANAccessControlEntry.*.MACAddress", "age": 300},
+
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.PortMapping.*.PortMappingEnabled",    "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.PortMapping.*.PortMappingProtocol",   "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.PortMapping.*.ExternalPort",          "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.PortMapping.*.InternalClient",        "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.PortMapping.*.InternalPort",          "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.WANDevice.1.WANConnectionDevice.1.WANIPConnection.1.PortMapping.*.PortMappingDescription", "age": 300},
+
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.LANHostConfigManagement.IPInterface.1.DHCPStaticAddress.*.Enable", "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.LANHostConfigManagement.IPInterface.1.DHCPStaticAddress.*.Chaddr", "age": 300},
+    {"type": "age", "name": "InternetGatewayDevice.LANDevice.1.LANHostConfigManagement.IPInterface.1.DHCPStaticAddress.*.Yiaddr", "age": 300}
+  ]
+}

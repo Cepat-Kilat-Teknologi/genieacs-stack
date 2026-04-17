@@ -7,13 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased] (v1.3.0 in progress — ISP SaaS preset bundle)
 
-### Added — ZTE F670L WAN PON optical paths (session 5i)
+### Added — ZTE F670L WAN PON optical paths
 
 After real-lab verification against a ZTE F670L (V9.0.10P1N12A), the
 preset bundle now declares 6 additional retention paths under
 `InternetGatewayDevice.WANDevice.1.X_ZTE-COM_WANPONInterfaceConfig.*`.
 These feed the **genieacs-relay v2.2.0 optical handler's new F670L
-extractor** (see genieacs-relay CHANGELOG session 5i). Without these
+extractor** (see genieacs-relay CHANGELOG v2.2.0). Without these
 entries the optical endpoint returns `404 OPTICAL_NOT_SUPPORTED` on
 F670L because GenieACS only fetches subtrees declared in an active
 preset; the F670L does not expose the five existing `X_CT-COM_*` /
@@ -51,7 +51,7 @@ succeed at the API layer (202 task enqueued) but the CPE never
 receives the task because GenieACS can't authenticate to its
 ConnectionRequestURL.
 
-**Mitigation (applied live in the session 5i lab mongo, not yet
+**Mitigation (applied live in the lab mongo, not yet
 file-level)**: patch the `inform` provision in mongo to drop the
 `PeriodicInformTime` declares. Leaves `PeriodicInformEnable` /
 `PeriodicInformInterval` intact.

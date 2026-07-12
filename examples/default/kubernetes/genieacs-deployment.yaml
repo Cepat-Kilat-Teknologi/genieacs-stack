@@ -19,6 +19,21 @@ spec:
         app.kubernetes.io/name: genieacs
         app.kubernetes.io/component: app
     spec:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: storage
+                    operator: In
+                    values: ["false"]
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 80
+              preference:
+                matchExpressions:
+                  - key: kubernetes.io/hostname
+                    operator: In
+                    values: ["k3s-worker4b"]
       initContainers:
         # Fix permissions for log and ext directories
         - name: fix-permissions

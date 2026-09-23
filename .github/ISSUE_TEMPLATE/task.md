@@ -2,7 +2,6 @@
 name: Task
 about: A planned change, improvement or maintenance item
 title: ""
-labels: ["type:task"]
 ---
 
 ## Context

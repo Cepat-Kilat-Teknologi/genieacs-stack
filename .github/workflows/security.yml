@@ -36,8 +36,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  trivy-scan:
-    name: Trivy Vulnerability Scan
+  # vuln: Trivy image + config scan
+  vuln:
+    name: vuln
     runs-on: ubuntu-latest
     permissions:
       contents: read

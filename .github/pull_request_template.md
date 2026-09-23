@@ -1,46 +1,24 @@
-## Summary of Changes
+<!-- Link the issue this PR resolves, e.g. "Fixes #123" -->
+Fixes #
 
-<!-- Provide a concise description of what this PR does and why. -->
+## What changed
 
-## Type of Change
+## Why
 
-<!-- Check all that apply. -->
+## How it was tested
+<!-- e.g. docker compose smoke test, helm lint/template, kubeconform, helm install on a test cluster -->
 
-- [ ] Bug fix (non-breaking change that fixes an issue)
-- [ ] New feature (non-breaking change that adds functionality)
-- [ ] Breaking change (fix or feature that would cause existing functionality to change)
-- [ ] Documentation update
-- [ ] Configuration change
-- [ ] CI/CD or build improvement
-- [ ] Refactoring (no functional changes)
+## Risk class and rollback
+<!-- risk:low | risk:standard | risk:high; rollback plan required for risk:high -->
 
-## Deployment Methods Affected
+## Target environment(s)
+<!-- Deployment methods affected: Docker Compose / Kubernetes (Kustomize) / Helm chart / ArgoCD, or "none" -->
 
-<!-- Check all that apply. -->
+## Database impact
+<!-- none | additive change | breaking change to MongoDB data or indexes (expand/contract step) -->
 
-- [ ] Docker Compose
-- [ ] Kubernetes / Kustomize
-- [ ] Helm Chart
-- [ ] ArgoCD
-- [ ] None / Not applicable
+## Deploy order (cross-repo only)
 
-## Testing Done
-
-<!-- Describe the testing you performed. Include commands, environments, and results. -->
-
-- [ ] Tested locally with Docker Compose (`docker compose up -d`)
-- [ ] Tested with Kubernetes (specify cluster type: minikube / kind / EKS / GKE / other)
-- [ ] Tested Helm chart deployment (`helm install` / `helm upgrade`)
-- [ ] Verified GenieACS UI accessible and functional
-- [ ] Verified device provisioning workflow (if applicable)
-
-## Checklist
-
-<!-- Ensure all items are completed before requesting review. -->
-
-- [ ] My changes follow the existing code style and conventions
-- [ ] I have tested my changes in the relevant deployment environment(s)
-- [ ] I have updated documentation where necessary
-- [ ] I have updated the CHANGELOG if applicable
-- [ ] My changes do not introduce new warnings or errors
-- [ ] I have reviewed my own changes before submitting this PR
+## Docs updated
+- [ ] README / INSTALLATION / examples / Helm chart README / CHANGELOG
+- [ ] No secrets, real hostnames or IP addresses committed

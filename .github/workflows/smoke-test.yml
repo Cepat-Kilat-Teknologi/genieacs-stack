@@ -25,57 +25,80 @@ name: Smoke Test
 on:
   push:
     branches: [main]
-    # Only run when files that affect the runtime stack change.
-    paths:
-      - 'Dockerfile'
-      - 'config/**'
-      - 'scripts/**'
-      - 'docker-compose.yml'
-  # PR path filtering is done by the `changes` job so that the required
-  # `test` check still reports (as Skipped) on docs-only PRs.
+  # No trigger-level path filters: the `changes` job decides, so the
+  # required `test` check still reports (as Skipped) on docs-only changes.
   pull_request:
     branches: [main]
   # Allow manual triggering for ad-hoc validation (e.g., after a base
   # image update on Docker Hub that does not change any tracked files).
   workflow_dispatch:
 
+# Cancel superseded PR runs only; main, tag and scheduled runs always finish.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   # ========================
-  # changes: decide whether runtime-stack files changed in a PR
-  # Path filtering lives here instead of at trigger level so that a
-  # docs-only PR still reports the required checks (as Skipped).
-  # Push, tag and manual runs always run everything.
+  # changes: classify the change set as code / non-code
+  # Runs on PRs and pushes. Non-code-only changes (docs, templates, repo
+  # metadata) report the required checks as Skipped instead of running them.
+  # Tags, new branches, manual/scheduled runs and any classification
+  # failure count as code changes (fail safe).
   # ========================
   changes:
     name: changes (test)
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
-    # Fail safe: a missing filter result (step error) is treated as relevant,
-    # because a skipped required check counts as passing.
     outputs:
-      run: ${{ github.event_name != 'pull_request' || steps.filter.outputs.relevant != 'false' }}
+      code: ${{ steps.filter.outputs.code }}
     steps:
-      - name: Detect relevant changes
-        id: filter
-        if: github.event_name == 'pull_request'
-        uses: dorny/paths-filter@v4
+      - name: Checkout code
+        uses: actions/checkout@v7
         with:
-          filters: |
-            relevant:
-              - '.github/workflows/smoke-test.yml'
-              - 'Dockerfile'
-              - 'config/**'
-              - 'scripts/**'
-              - 'docker-compose.yml'
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          out() { echo "code=$1" >> "$GITHUB_OUTPUT"; echo "code=$1 ($2)"; exit 0; }
+          case "$EVENT" in
+            pull_request) RANGE="$PR_BASE...$PR_HEAD" ;;
+            push)
+              [[ "$REF" == refs/tags/* ]] && out true "tag"
+              [[ -z "$BEFORE" || "$BEFORE" =~ ^0+$ ]] && out true "new branch"
+              RANGE="$BEFORE..$SHA" ;;
+            *) out true "event $EVENT" ;;
+          esac
+          if ! files=$(git diff --no-renames --name-only "$RANGE"); then out true "git diff failed"; fi
+          [ -z "$files" ] && out true "no files listed"
+          while IFS= read -r f; do
+            case "$f" in
+              *.md|docs/*|LICENSE|LICENSE.*|.gitignore|.gitattributes|.editorconfig|.claude/*|CODEOWNERS|\
+              .github/CODEOWNERS|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md|\
+              .github/PULL_REQUEST_TEMPLATE/*|.github/dependabot.yml|.github/actionlint.yaml|\
+              .gitleaks.toml|.gitleaksignore|.github/workflows/gitleaks.yml|.env.example|.env.*.example|*.http) ;;
+              *) out true "code file: $f" ;;
+            esac
+          done <<< "$files"
+          out false "non-code only"
 
   # test: Docker Compose smoke test
   test:
     name: test
     runs-on: ubuntu-latest
     needs: changes
-    if: ${{ !cancelled() && needs.changes.outputs.run != 'false' }}
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     # No special permissions needed -- we only build and run locally.
 
     steps:

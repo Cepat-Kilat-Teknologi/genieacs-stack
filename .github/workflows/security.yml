@@ -35,11 +35,72 @@ on:
     - cron: '0 6 * * 1'
   workflow_dispatch:
 
+# Cancel superseded PR runs only; main, tag and scheduled runs always finish.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
+  # ========================
+  # changes: classify the change set as code / non-code
+  # Runs on PRs and pushes. Non-code-only changes (docs, templates, repo
+  # metadata) report the required checks as Skipped instead of running them.
+  # Tags, new branches, manual/scheduled runs and any classification
+  # failure count as code changes (fail safe).
+  # ========================
+  changes:
+    name: changes (vuln)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Classify changed files
+        id: filter
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          BEFORE: ${{ github.event.before }}
+          SHA: ${{ github.sha }}
+        shell: bash
+        run: |
+          set -uo pipefail
+          out() { echo "code=$1" >> "$GITHUB_OUTPUT"; echo "code=$1 ($2)"; exit 0; }
+          case "$EVENT" in
+            pull_request) RANGE="$PR_BASE...$PR_HEAD" ;;
+            push)
+              [[ "$REF" == refs/tags/* ]] && out true "tag"
+              [[ -z "$BEFORE" || "$BEFORE" =~ ^0+$ ]] && out true "new branch"
+              RANGE="$BEFORE..$SHA" ;;
+            *) out true "event $EVENT" ;;
+          esac
+          if ! files=$(git diff --no-renames --name-only "$RANGE"); then out true "git diff failed"; fi
+          [ -z "$files" ] && out true "no files listed"
+          while IFS= read -r f; do
+            case "$f" in
+              *.md|docs/*|LICENSE|LICENSE.*|.gitignore|.gitattributes|.editorconfig|.claude/*|CODEOWNERS|\
+              .github/CODEOWNERS|.github/ISSUE_TEMPLATE/*|.github/pull_request_template.md|\
+              .github/PULL_REQUEST_TEMPLATE/*|.github/dependabot.yml|.github/actionlint.yaml|\
+              .gitleaks.toml|.gitleaksignore|.github/workflows/gitleaks.yml|.env.example|.env.*.example|*.http) ;;
+              *) out true "code file: $f" ;;
+            esac
+          done <<< "$files"
+          out false "non-code only"
+
   # vuln: Trivy image + config scan
   vuln:
     name: vuln
     runs-on: ubuntu-latest
+    needs: changes
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     permissions:
       contents: read
       # Required to upload SARIF results to the GitHub Security tab.

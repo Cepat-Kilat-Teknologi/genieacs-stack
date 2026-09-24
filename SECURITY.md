@@ -374,7 +374,7 @@ podSecurityContext:
 
 > **Why not `runAsNonRoot`?** Both the official MongoDB image and GenieACS (via supervisord) require root at startup: MongoDB runs `chown` on data directories then drops to uid 999 via `gosu`; supervisord starts as root then switches child processes to `user=genieacs`. After initialization, all application processes run as non-root.
 
-**Network isolation** provides the primary security boundary — the `NetworkPolicy` template restricts MongoDB access to GenieACS pods only.
+**Network isolation** provides the primary security boundary, the `NetworkPolicy` template restricts MongoDB access to GenieACS pods only.
 
 ### Docker Security Options
 
@@ -388,7 +388,7 @@ services:
 
 ### Minimal Runtime Image
 
-The runtime Docker image only contains the `node` binary — npm, npx, and corepack are excluded. This reduces the attack surface by eliminating npm's bundled dependencies (such as `tar`, `minimatch`, and `picomatch`) which had known CVEs.
+The runtime Docker image only contains the `node` binary, npm, npx, and corepack are excluded. This reduces the attack surface by eliminating npm's bundled dependencies (such as `tar`, `minimatch`, and `picomatch`) which had known CVEs.
 
 The multi-stage build installs GenieACS with npm in the build stage, then copies only the node binary and the installed application to the runtime stage. No package manager is available in the final image.
 

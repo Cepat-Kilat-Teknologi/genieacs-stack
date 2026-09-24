@@ -1,7 +1,6 @@
-# Default code owners for the GenieACS Stack repository.
-# These users will be automatically requested for review on all pull requests.
-#
-# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+# Code owners — every pull request needs a review from a code owner.
+# Workplan W2.5 / ADR-015. Owners must be a team (or user) with write access;
+# a bare org handle such as @Cepat-Kilat-Teknologi is silently ignored by GitHub.
+# Split into per-division teams (backend, frontend, devops) as they are staffed.
 
-# Global owner — applies to all files unless overridden below
-* @sumitroajiprabowo
+*                   @cepat-kilat-teknologi/engineering

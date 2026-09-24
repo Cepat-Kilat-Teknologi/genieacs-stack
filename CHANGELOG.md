@@ -5,9 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] (v1.3.0 in progress — ISP SaaS preset bundle)
+## [Unreleased] (v1.3.0 in progress - ISP SaaS preset bundle)
 
-### Added — ZTE F670L WAN PON optical paths
+### Added - ZTE F670L WAN PON optical paths
 
 After real-lab verification against a ZTE F670L (V9.0.10P1N12A), the
 preset bundle now declares 6 additional retention paths under
@@ -25,7 +25,7 @@ New entries (`type=age`, age 300s):
 - `...X_ZTE-COM_WANPONInterfaceConfig.RXPower`
 - `...X_ZTE-COM_WANPONInterfaceConfig.BiasCurrent`
 - `...X_ZTE-COM_WANPONInterfaceConfig.TransceiverTemperature`
-- `...X_ZTE-COM_WANPONInterfaceConfig.SupplyVoltage` (millivolts — the
+- `...X_ZTE-COM_WANPONInterfaceConfig.SupplyVoltage` (millivolts: the
   relay normalizes `>100` raw to volts automatically)
 - `...X_ZTE-COM_WANPONInterfaceConfig.Status`
 
@@ -33,7 +33,7 @@ Real-lab verification via genieacs-relay `GET /optical/{ip}`:
 TX 2.59 dBm, RX -25.08 dBm, bias 13.7 mA, temp 35.31°C, V 3.244,
 source `zte_wan_pon_interface`.
 
-### Known issue — stock `inform` provision atomic rollback on ZTE
+### Known issue - stock `inform` provision atomic rollback on ZTE
 
 **Not caused by this preset, but surfaced during the same lab session.**
 GenieACS's built-in `/init` bootstrap creates an `inform` provision
@@ -42,7 +42,7 @@ that writes `PeriodicInformTime` as numeric ms-since-epoch via
 OEM firmware lines) expects `xsd:dateTime` ISO 8601 and rejects the
 numeric with fault `9007 Invalid parameter value`. Because TR-069
 `setParameterValues` is atomic, this rejection rolls back **every
-sibling write in the same call** — including
+sibling write in the same call**: including
 `ConnectionRequestUsername` / `ConnectionRequestPassword`. The CPE
 then holds stale credentials, GenieACS's side of the handshake
 drifts, and live `?connection_request` calls fail with HTTP 401
@@ -63,9 +63,9 @@ file-level)**: patch the `inform` provision in mongo to drop the
   runs after the stock `inform` and short-circuits the bad declare.
 - Option C: upstream PR to GenieACS itself.
 
-### Added — Preset bundle companion to genieacs-relay v2.2.0
+### Added - Preset bundle companion to genieacs-relay v2.2.0
 
-- **`examples/default/presets/isp-saas-default.json`** — declarative
+- **`examples/default/presets/isp-saas-default.json`**: declarative
   GenieACS preset bundle that ships with 51 TR-069 parameter path
   declarations. Pairs with **genieacs-relay v2.2.0** whose new read
   endpoints (H1 `/status/{ip}`, H4 `/wan/{ip}`, M3 `/wifi-clients/{ip}`,
@@ -73,7 +73,7 @@ file-level)**: patch the `inform` provision in mongo to drop the
   data richer than the default CWMP inform payload. Without the
   preset, those endpoints return empty or incomplete device trees
   because GenieACS only retains parameters that are declared in an
-  active preset or provision — a well-known behavior of the upstream
+  active preset or provision: a well-known behavior of the upstream
   GenieACS server, not a genieacs-stack bug.
 
   Preset coverage groups (see
@@ -99,13 +99,13 @@ file-level)**: patch the `inform` provision in mongo to drop the
   are declared alongside their standard-path equivalents so the relay
   falls back gracefully across the Indonesian ONT fleet (ZTE F670L,
   Huawei EG8145V5, FiberHome HG6243C, etc.). Devices that don't expose
-  a particular path simply produce empty values in the device tree —
+  a particular path simply produce empty values in the device tree,
   no hard errors.
 
-- **`examples/default/presets/README.md`** — install guide, rationale
+- **`examples/default/presets/README.md`**: install guide, rationale
   table, vendor caveats, and uninstall procedure. Three install paths
   documented: (1) via genieacs-relay v2.2.0+ `PUT /presets/{name}`
-  endpoint (recommended — full-circle dogfooding of the relay's own
+  endpoint (recommended: full-circle dogfooding of the relay's own
   L10 endpoint), (2) direct `PUT /presets/{id}` against the GenieACS
   NBI, (3) manual paste into the GenieACS Web UI at Admin → Presets.
 
@@ -115,15 +115,15 @@ file-level)**: patch the `inform` provision in mongo to drop the
   paired release. v1.2.16 + relay v2.1.x continues to work for the
   v2.1.0 endpoint set (reboot, DHCP refresh, optical health, WLAN CRUD)
   since those only depend on default inform fields.
-- **No stack code changes** — this release is pure config bundle + docs.
+- **No stack code changes**: this release is pure config bundle + docs.
   MongoDB 8.0 and GenieACS 1.2.16 versions unchanged.
 
 ### Added
 - GitHub Issue templates (bug report, feature request) with YAML-based forms
 - GitHub Pull Request template with checklist and change type classification
 - CODEOWNERS file for automatic PR review assignment
-- Helm chart tests (`helm test`) for both default and nbi-auth variants — verifies UI, NBI, and MongoDB connectivity
-- CI smoke test workflow — boots full stack with Docker Compose and verifies all endpoints
+- Helm chart tests (`helm test`) for both default and nbi-auth variants, verifies UI, NBI, and MongoDB connectivity
+- CI smoke test workflow: boots full stack with Docker Compose and verifies all endpoints
 - MongoDB backup CronJob template for Helm charts (optional, disabled by default)
 - Backup PVC template for persistent backup storage in Kubernetes
 - Ingress cert-manager annotation examples (cluster-issuer, ssl-redirect, proxy-body-size)
@@ -132,11 +132,11 @@ file-level)**: patch the `inform` provision in mongo to drop the
 - GitHub Discussions enabled for community Q&A
 
 ### Security
-- Removed npm/npx/corepack from runtime image — eliminates 5 CVEs in npm bundled deps (tar, minimatch, picomatch)
+- Removed npm/npx/corepack from runtime image: eliminates 5 CVEs in npm bundled deps (tar, minimatch, picomatch)
 
 ### Fixed
-- LICENSE file copyright placeholder `[yyyy] [name of copyright owner]` — GitHub now detects Apache-2.0 correctly
-- CI docker-build GHCR registry cache 401 on PRs — cache-from/cache-to now conditional on non-PR events
+- LICENSE file copyright placeholder `[yyyy] [name of copyright owner]`: GitHub now detects Apache-2.0 correctly
+- CI docker-build GHCR registry cache 401 on PRs, cache-from/cache-to now conditional on non-PR events
 
 ## [1.2.16] - 2026-04-04
 
@@ -147,15 +147,15 @@ file-level)**: patch the `inform` provision in mongo to drop the
 - GenieACS container OOM at 1GB limit (4 Node.js processes need ~1.5GB); increased to 2GB in all manifests (Docker Compose, Helm values, Kustomize overlays)
 - `create-user.sh` now bootstraps fresh installs: creates admin permissions (30 entries) and triggers GenieACS UI init (default presets, provisions, overview config)
 - GenieACS `/init` with `users:true` overwrote custom user with default password; fixed by passing `users:false`
-- MongoDB `chown: Operation not permitted` in Kubernetes — removed `runAsNonRoot`/`capabilities: drop: ALL` from MongoDB pod; official image needs root for entrypoint chown then drops via gosu
-- Supervisord `Can't drop privilege as nonroot user` — removed `runAsUser: 1000`/`runAsNonRoot: true` from GenieACS pod; supervisord needs root to switch `user=genieacs` in child processes
-- MongoDB healthcheck `user not found` in Kubernetes — `$(VAR)` K8s interpolation fails with `envFrom` secrets; changed to `bash -c` with `$VAR` shell expansion
-- Nginx sidecar `chown /tmp/client_temp` failed in nbi-auth Helm — removed restrictive container security context
+- MongoDB `chown: Operation not permitted` in Kubernetes: removed `runAsNonRoot`/`capabilities: drop: ALL` from MongoDB pod; official image needs root for entrypoint chown then drops via gosu
+- Supervisord `Can't drop privilege as nonroot user`: removed `runAsUser: 1000`/`runAsNonRoot: true` from GenieACS pod; supervisord needs root to switch `user=genieacs` in child processes
+- MongoDB healthcheck `user not found` in Kubernetes: `$(VAR)` K8s interpolation fails with `envFrom` secrets; changed to `bash -c` with `$VAR` shell expansion
+- Nginx sidecar `chown /tmp/client_temp` failed in nbi-auth Helm, removed restrictive container security context
 - Duplicate `app.kubernetes.io/component` key in mongodb-secret Helm template
-- Helm OCI push 403 Forbidden — added `packages: write` permission to helm-release workflow
-- GHCR references used uppercase org name — hardcoded lowercase `cepat-kilat-teknologi`
-- kubeconform failed on `kustomization.yaml` — added `-ignore-filename-pattern`
-- Trivy exit-code 1 blocked CI on base image CVEs — changed to exit-code 0 for SARIF reporting
+- Helm OCI push 403 Forbidden: added `packages: write` permission to helm-release workflow
+- GHCR references used uppercase org name, hardcoded lowercase `cepat-kilat-teknologi`
+- kubeconform failed on `kustomization.yaml`: added `-ignore-filename-pattern`
+- Trivy exit-code 1 blocked CI on base image CVEs, changed to exit-code 0 for SARIF reporting
 
 ### Security
 - Upgraded GenieACS from 1.2.13 to 1.2.16 (critical RCE fix)

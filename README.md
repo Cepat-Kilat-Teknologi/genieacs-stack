@@ -17,7 +17,7 @@ Complete deployment stack for [GenieACS](https://genieacs.com) v1.2.16 with Mong
 - **NBI API Authentication** - Optional X-API-Key protection via Nginx proxy
 - **MongoDB Authentication** - Secure database access with username/password
 - **Multi-architecture** - amd64, arm64 support
-- **Note:** ARMv7 (32-bit ARM) is not supported — Node.js 24 dropped official ARMv7 binaries
+- **Note:** ARMv7 (32-bit ARM) is not supported, Node.js 24 dropped official ARMv7 binaries
 - **Helm Chart Tests** - Post-install verification via `helm test`
 - **MongoDB Backup CronJob** - Optional scheduled backups (Helm)
 - **Cert-manager Ingress** - TLS termination with cert-manager examples

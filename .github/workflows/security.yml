@@ -108,7 +108,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Build a local image specifically for scanning.  This ensures we
       # test the exact layers and packages that would ship in production.

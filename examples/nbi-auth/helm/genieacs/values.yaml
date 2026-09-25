@@ -88,6 +88,7 @@ nbiAuth:
   # Use an existing secret for API key instead of creating one
   # If set, the chart will NOT create nbi-auth secret and will use this existing secret
   # The existing secret must contain: NBI_API_KEY
+  # The key is read at container start; restart the pod after changing it.
   existingSecret: ""
 
   # API Key for NBI authentication (ignored if existingSecret is set)

@@ -1,0 +1,90 @@
+# Publishes the genieacs-nbi-auth chart from the 0.2 maintenance line.
+#
+# Only the nbi-auth chart is packaged. The main-branch workflow also packages
+# the default chart, which on this branch is the already published
+# genieacs-0.2.0 and would be overwritten. A published version is never
+# replaced: the job fails if the package exists on gh-pages or in GHCR.
+name: Helm 0.2
+
+on:
+  push:
+    branches:
+      - release/genieacs-nbi-auth-0.2
+    paths:
+      - 'examples/nbi-auth/helm/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    env:
+      CHART_DIR: examples/nbi-auth/helm/genieacs
+      REPO_URL: https://cepat-kilat-teknologi.github.io/genieacs-stack
+      OCI_REPO: oci://ghcr.io/cepat-kilat-teknologi/charts
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: azure/setup-helm@v5
+        with:
+          version: v3.16.3
+
+      - name: Lint and render
+        run: |
+          helm lint "$CHART_DIR" --strict
+          helm template test "$CHART_DIR" > /dev/null
+          helm template test "$CHART_DIR" --set nbiAuth.existingSecret=external > /dev/null
+
+      - name: Package
+        id: pkg
+        run: |
+          mkdir -p .helm-packages
+          helm package "$CHART_DIR" -d .helm-packages
+          pkg=$(ls .helm-packages/*.tgz)
+          echo "file=$(basename "$pkg")" >> "$GITHUB_OUTPUT"
+          echo "version=$(helm show chart "$pkg" | awk '/^version:/{print $2}')" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v6
+        with:
+          ref: gh-pages
+          path: gh-pages
+
+      - name: Refuse to overwrite a published version
+        env:
+          FILE: ${{ steps.pkg.outputs.file }}
+          VERSION: ${{ steps.pkg.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          if [ -e "gh-pages/$FILE" ]; then
+            echo "::error::$FILE is already published on gh-pages"; exit 1
+          fi
+          echo "$GH_TOKEN" | helm registry login ghcr.io -u "$ACTOR" --password-stdin
+          if helm show chart "$OCI_REPO/genieacs-nbi-auth" --version "$VERSION" >/dev/null 2>&1; then
+            echo "::error::genieacs-nbi-auth $VERSION is already in GHCR"; exit 1
+          fi
+
+      - name: Publish to gh-pages
+        env:
+          FILE: ${{ steps.pkg.outputs.file }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          cp ".helm-packages/$FILE" gh-pages/
+          cd gh-pages
+          git config --local user.name "$ACTOR"
+          git config --local user.email "${ACTOR}@users.noreply.github.com"
+          # --merge keeps every existing index entry unchanged.
+          helm repo index . --url "$REPO_URL" --merge index.yaml
+          git add "$FILE" index.yaml
+          git commit -m "Release genieacs-nbi-auth from the 0.2 line: $FILE"
+          git push
+
+      - name: Publish to GHCR (OCI)
+        env:
+          FILE: ${{ steps.pkg.outputs.file }}
+        run: helm push ".helm-packages/$FILE" "$OCI_REPO"

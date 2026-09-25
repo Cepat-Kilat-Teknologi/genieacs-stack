@@ -1,3 +1,6 @@
+{{- /* The ${NBI_API_KEY} placeholder is replaced at container start by envsubst
+  from the nbi-auth Secret (or nbiAuth.existingSecret), so the key is never
+  stored in this ConfigMap. */}}
 {{- if .Values.nbiAuth.enabled }}
 apiVersion: v1
 kind: ConfigMap
@@ -38,7 +41,7 @@ data:
 
             location / {
                 # Validate X-API-Key header
-                if ($http_x_api_key != "{{ .Values.nbiAuth.apiKey }}") {
+                if ($http_x_api_key != "${NBI_API_KEY}") {
                     return 401 '{"error": "Invalid or missing X-API-Key"}';
                 }
 

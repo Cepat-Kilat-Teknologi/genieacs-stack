@@ -68,12 +68,21 @@ spec:
         - name: nginx-nbi-auth
           image: "{{ .Values.nbiAuth.image.repository }}:{{ .Values.nbiAuth.image.tag }}"
           imagePullPolicy: {{ .Values.nbiAuth.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - |
+              envsubst '${NBI_API_KEY}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
+              exec nginx -g 'daemon off;'
+          envFrom:
+            - secretRef:
+                name: {{ .Values.nbiAuth.existingSecret | default (printf "%s-nbi-auth" (include "genieacs.fullname" .)) }}
           ports:
             - containerPort: {{ .Values.nbiAuth.internalPort }}
               name: nbi-auth
           volumeMounts:
             - name: nginx-config
-              mountPath: /etc/nginx/nginx.conf
+              mountPath: /etc/nginx/nginx.conf.template
               subPath: nginx.conf
           resources:
             {{- toYaml .Values.nbiAuth.resources | nindent 12 }}

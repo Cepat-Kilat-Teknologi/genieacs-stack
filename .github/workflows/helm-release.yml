@@ -39,7 +39,7 @@ jobs:
 
     steps:
       - name: Checkout main
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Full history is required so helm-repo-index can detect which
           # chart versions are new vs. already published.
@@ -105,7 +105,7 @@ jobs:
       # packages without losing previously published versions.
       # ---------------------------------------------------------------
       - name: Checkout gh-pages branch
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: gh-pages
           path: gh-pages

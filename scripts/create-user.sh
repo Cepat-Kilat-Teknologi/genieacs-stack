@@ -206,10 +206,22 @@ if [[ "$CONFIG_COUNT" -eq 0 ]] 2>/dev/null; then
         'db.cache.deleteOne({_id: "ui-local-cache-hash"})' > /dev/null 2>&1
     sleep 3
 
-    UI_PORT="${GENIEACS_UI_PORT:-3000}"
+    # Parse GENIEACS_UI_PORT which may be "PORT" or "IP:PORT".
+    # Docker Compose port mappings accept an optional bind address prefix
+    # (e.g., "192.168.1.10:3000" or "127.0.0.1:3000"). When the IP prefix
+    # is present, the UI is only reachable on that address, not on localhost.
+    _RAW_UI_PORT="${GENIEACS_UI_PORT:-3000}"
+    if [[ "$_RAW_UI_PORT" == *:* ]]; then
+        UI_HOST="${_RAW_UI_PORT%:*}"
+        UI_PORT="${_RAW_UI_PORT##*:}"
+    else
+        UI_HOST="localhost"
+        UI_PORT="$_RAW_UI_PORT"
+    fi
+    UI_URL="http://${UI_HOST}:${UI_PORT}"
 
     # Login to get JWT token
-    TOKEN=$(curl -sf "http://localhost:${UI_PORT}/login" \
+    TOKEN=$(curl -sf "${UI_URL}/login" \
         -H "Content-Type: application/json" \
         -d "{\"username\":\"${USERNAME}\",\"password\":\"${PASSWORD}\"}" 2>/dev/null | tr -d '"')
 
@@ -218,7 +230,7 @@ if [[ "$CONFIG_COUNT" -eq 0 ]] 2>/dev/null; then
         # provisions, overview layout, device page columns, and index page filters.
         # "users" is set to false because we already created the user above;
         # passing true would overwrite our user with GenieACS defaults (password "admin").
-        INIT_CODE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:${UI_PORT}/init" \
+        INIT_CODE=$(curl -s -o /dev/null -w "%{http_code}" "${UI_URL}/init" \
             -H "Content-Type: application/json" \
             -H "Cookie: genieacs-ui-jwt=$TOKEN" \
             -d '{"users":false,"filters":true,"device":true,"index":true,"overview":true,"presets":true}' 2>/dev/null)
@@ -241,6 +253,13 @@ docker exec "$MONGO_CONTAINER" mongosh --quiet "$MONGO_URI" --eval \
     'db.cache.deleteOne({_id: "ui-local-cache-hash"})' > /dev/null 2>&1
 
 echo ""
-echo -e "You can now login at ${GREEN}http://localhost:${GENIEACS_UI_PORT:-3000}${NC}"
+# Parse the port variable the same way as the init block above.
+_RAW_UI_PORT="${GENIEACS_UI_PORT:-3000}"
+if [[ "$_RAW_UI_PORT" == *:* ]]; then
+    _LOGIN_URL="http://${_RAW_UI_PORT}"
+else
+    _LOGIN_URL="http://localhost:${_RAW_UI_PORT}"
+fi
+echo -e "You can now login at ${GREEN}${_LOGIN_URL}${NC}"
 echo "  Username: $USERNAME"
 echo "  Password: (as provided)"

@@ -257,7 +257,10 @@ services:
       # The /health endpoint is defined in the nginx config and returns 200
       # without requiring authentication, so Docker can verify the proxy is
       # running independently of the API key.
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:7558/health"]
+      # IMPORTANT: Use 127.0.0.1 instead of "localhost" because nginx listens
+      # on 0.0.0.0 (IPv4 only). On Alpine, "localhost" may resolve to ::1
+      # (IPv6) first, causing "Connection refused" even though nginx is running.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:7558/health"]
       interval: 30s
       timeout: 5s
       retries: 3

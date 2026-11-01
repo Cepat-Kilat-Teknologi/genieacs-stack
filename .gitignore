@@ -141,3 +141,6 @@ kubeconfig
 dist/
 build/
 *.tsbuildinfo
+
+# oh-my-claudecode local state
+.omc/

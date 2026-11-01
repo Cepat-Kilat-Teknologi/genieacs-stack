@@ -138,6 +138,9 @@ file-level)**: patch the `inform` provision in mongo to drop the
 - LICENSE file copyright placeholder `[yyyy] [name of copyright owner]`: GitHub now detects Apache-2.0 correctly
 - CI docker-build GHCR registry cache 401 on PRs, cache-from/cache-to now conditional on non-PR events
 
+### Changed
+- `.omc/` (local editor tool state) added to `.gitignore`
+
 ## [1.2.16] - 2026-04-04
 
 ### Fixed
